@@ -1,8 +1,15 @@
 import { Hono } from 'jsr:@hono/hono'
+import { cors } from 'jsr:@hono/hono/cors'
 import type { Context } from 'jsr:@hono/hono'
+
+// IMPORT Shared 
 import { getSupabaseClient } from '../_shared/supabase.ts'
+import { corsHeaders } from '../_shared/cors.ts'
 
 const app = new Hono()
+
+// Apply CORS to all /templates routes before defining handlers
+app.use('/templates/*', cors(corsHeaders))
 
 app.get('/templates', async (c: Context) => {
   const supabase = getSupabaseClient(c)
