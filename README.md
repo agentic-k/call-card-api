@@ -1,3 +1,7 @@
+# Note:
+use this as a main project, and store all Supabase and API code in here 
+
+
 # Node.js Hello World
 
 Simple Node.js + Vercel example that returns a "Hello World" response.
@@ -29,3 +33,4 @@ Then run the app at the root of the repository:
 ```bash
 vercel dev
 ```
+
