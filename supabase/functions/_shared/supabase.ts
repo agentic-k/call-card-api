@@ -1,14 +1,18 @@
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+// functions/_shared/supabase.ts
+import { createClient, SupabaseClient } from 'jsr:@supabase/supabase-js'
 import type { Context } from 'jsr:@hono/hono'
 
-export function getSupabaseClient(c: Context) {
+/**
+ * Returns a Supabase client instance that forwards the incoming
+ * Authorization header (JWT) for RLS.
+ */
+export function getSupabaseClient(c: Context): SupabaseClient {
   return createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_ANON_KEY')!,
     {
       global: {
         headers: {
-          // forward the incoming JWT for RLS
           Authorization: c.req.header('Authorization')!
         }
       }
@@ -16,9 +20,17 @@ export function getSupabaseClient(c: Context) {
   )
 }
 
+/**
+ * Convenience: fetches the authenticated user from Supabase Auth.
+ */
 export async function getUserFromContext(c: Context) {
   const supabase = getSupabaseClient(c)
-  const { data, error } = await supabase.auth.getUser()
-  if (error) return c.json({ error: error.message }, 401)
-  return data.user
+  const {
+    data: { user },
+    error
+  } = await supabase.auth.getUser()
+  if (error) {
+    throw new Error(`Auth error: ${error.message}`)
+  }
+  return user
 }
