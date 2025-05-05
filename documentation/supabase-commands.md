@@ -6,3 +6,13 @@ supabase functions serve --all
 
 # Create a new function
 supabase functions new templates
+
+# Generate token with password
+
+curl -X POST 'http: //localhost:54321/auth/v1/token?grant_type=password' \
+  -H "apikey: <SUPABASE_ANON_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "email": "<email>",
+  "password": "<password>"
+}'
