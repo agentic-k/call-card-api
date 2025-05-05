@@ -1,0 +1,1 @@
+https://supabase.com/docs/guides/functions/routing?queryGroups=framework&framework=hono
