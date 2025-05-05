@@ -1,14 +1,15 @@
-# deploy a function 
+# API - function related commands
+
+## deploy a function 
 supabase functions deploy <function-name>
 
-# run all functions:
+## run all functions:
 supabase functions serve --all
 
-# Create a new function
+## Create a new function
 supabase functions new templates
 
-# Generate token with password
-
+## Generate token with password
 curl -X POST 'http: //localhost:54321/auth/v1/token?grant_type=password' \
   -H "apikey: <SUPABASE_ANON_KEY>" \
   -H "Content-Type: application/json" \
@@ -16,3 +17,8 @@ curl -X POST 'http: //localhost:54321/auth/v1/token?grant_type=password' \
   "email": "<email>",
   "password": "<password>"
 }'
+
+# Database - Related commands
+
+## generate types 
+supabase gen types typescript --local > supabase/types/database.types.ts
