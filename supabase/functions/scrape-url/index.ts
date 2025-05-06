@@ -5,19 +5,27 @@ import cheerio from 'https://esm.sh/cheerio@1.0.0-rc.12'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey',
 }
 
 Deno.serve(async (req: Request) => {
+  console.log('▶️ incoming method', req.method);
+
   if (req.method === 'OPTIONS') {
+    console.log('▶️ accepted options');
     return new Response(null, { headers: corsHeaders })
   }
+
+  console.log('▶️ accepted options');
+
   if (req.method !== 'POST') {
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
       { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
+
+  console.log('▶️ started processing');
 
   // Parse body
   let payload: { url?: string; selectors?: Record<string, string> }

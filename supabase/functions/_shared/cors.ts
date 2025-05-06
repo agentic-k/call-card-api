@@ -4,5 +4,3 @@ export const corsHeaders = {
     allowHeaders: ['authorization','x-client-info','apikey','content-type'],
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }
-
-
