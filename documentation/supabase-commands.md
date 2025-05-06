@@ -6,6 +6,10 @@ supabase functions deploy <function-name>
 ## run all functions:
 supabase functions serve --all
 
+## Run all function with specific env file
+supabase functions serve --env-file ./supabase/.env.local
+
+
 ## Create a new function
 supabase functions new templates
 
