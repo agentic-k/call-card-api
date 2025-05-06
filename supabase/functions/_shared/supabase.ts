@@ -34,3 +34,6 @@ export async function getUserFromContext(c: Context) {
   }
   return user
 }
+
+
+// TODO: Add a middleware that returns user Id
