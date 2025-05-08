@@ -1,8 +1,6 @@
 import { Hono } from 'jsr:@hono/hono'
 import type { Context } from 'jsr:@hono/hono'
-import { getSupabaseClient } from '../_shared/supabase.ts'
 import { createCorsMiddleware } from "../_shared/cors.ts"
-
 
 const app = new Hono()
 
@@ -85,6 +83,42 @@ function transformLinkedInProfileData(rawData: any): any {
   };
 }
 
+function transformLinkedInCompanyProfileData(rawData: any): any {
+  if (!rawData || !rawData.data) {
+    return null;
+  }
+
+  const companyData = rawData.data;
+  
+  return {
+    id: companyData.id || null,
+    name: companyData.name || null,
+    about: companyData.about || null,
+    unformatted_about: companyData.unformatted_about || null,
+    description: companyData.description || null,
+    slogan: companyData.slogan || null,
+    company_size: companyData.company_size || null,
+    organization_type: companyData.organization_type || null,
+    industries: companyData.industries || null,
+    website: companyData.website || null,
+    website_simplified: companyData.website_simplified || null,
+    crunchbase_url: companyData.crunchbase_url || null,
+    company_id: companyData.company_id || null,
+    url: companyData.url || null,
+    followers: companyData.followers || null,
+    employees_in_linkedin: companyData.employees_in_linkedin || null,
+    locations: Array.isArray(companyData.locations) ? companyData.locations : [],
+    funding: companyData.funding ? {
+      last_round_date: companyData.funding.last_round_date || null,
+      last_round_type: companyData.funding.last_round_type || null,
+      rounds: companyData.funding.rounds || null,
+      last_round_raised: companyData.funding.last_round_raised || null
+    } : null,
+    investors: Array.isArray(companyData.investors) ? companyData.investors : [],
+    timestamp: companyData.timestamp || null
+  };
+}
+
 // Shared Bright Data fetch logic
 async function fetchBrightData(url: string, datasetId: string) {
   const apiToken = Deno.env.get('BRIGHTDATA_API_TOKEN')!
@@ -154,11 +188,9 @@ async function fetchBrightData(url: string, datasetId: string) {
 
 // Route: LinkedIn Profile
 app.post('/scrape-data-integration/linkedin-profile', async (c: Context) => {
-  console.log('▶️ scraping linkedin profile', c.req)
   const linkedinDatasetId = 'gd_l1viktl72bvl7bjuj0';
   
   const payload = await c.req.json()
-  console.log('payload', payload)
 
   const { url } = payload as { url?: string }
   if (!url) {
@@ -195,17 +227,11 @@ app.post('/scrape-data-integration/linkedin-profile', async (c: Context) => {
   }
 })
 
-// Route: Company Profile
+// Route: LinkedIn Profile
 app.post('/scrape-data-integration/linkedin-company-profile', async (c: Context) => {
-  const companyDatasetId = 'BRIGHTDATA_COMPANY_DATASET_ID'; // Replace with your actual dataset ID
+  const companyDatasetId = 'gd_l1vikfnt1wgvvqz95w';
   
-  let payload: any
-  try {
-    payload = await c.req.json()
-  } catch (error) {
-    console.error('Invalid JSON payload:', error);
-    return c.json({ error: 'Invalid JSON' }, 400)
-  }
+  const payload = await c.req.json()
 
   const { url } = payload as { url?: string }
   if (!url) {
@@ -216,34 +242,21 @@ app.post('/scrape-data-integration/linkedin-company-profile', async (c: Context)
   try {
     const scraped = await fetchBrightData(url, companyDatasetId);
     
-    // Transform data if needed (you can create a transformLinkedInCompanyData function if necessary)
+    // Transform the scraped data to keep only relevant fields
+    const transformedCompanyData = transformLinkedInCompanyProfileData(scraped);
     
-    if (!scraped || !scraped.data) {
+    if (!transformedCompanyData) {
       return c.json({ 
         error: 'No company data found or invalid response structure',
         status: 404
       }, 404);
     }
     
-    // Store in Supabase
-    const supabase = getSupabaseClient(c)
-    const { data, error } = await supabase
-      .from('scrapte-data-integrations')
-      .insert([{ url, type: 'company', scraped_data: scraped.data }])
-      .select()
-    
-    if (error) {
-      console.error('Supabase insert error:', error);
-      return c.json({ 
-        error: 'Failed to store scraped data',
-        details: error.message
-      }, 400);
-    }
-    
-    return c.json({ data }, 201);
+    return c.json({ data: transformedCompanyData }, 201);
   } catch (err: any) {
     console.error('Bright Data API error:', err);
     if (err instanceof BrightDataError) {
+      // Use fixed status code to avoid type errors
       const statusCode = 502; // Default to bad gateway for API errors
       return c.json({ 
         error: err.message, 
