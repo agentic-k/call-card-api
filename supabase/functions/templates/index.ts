@@ -63,7 +63,6 @@ app.post('/templates', async (c: Context) => {
     .select()
     .single();
 
-  console.log('data', data)
   
   if (error) return c.json({ error: error.message }, 400)
   return c.json(data, 201)
