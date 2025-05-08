@@ -12,15 +12,22 @@ app.use('/agent-api/*', createCorsMiddleware())
 app.post('/agent-api/create-call-pack', async (c: Context) => {
   
   const payload = await c.req.json()
+  const { linkedinProfileData, linkedinCompanyData, companyName } = 
+    payload as { linkedinProfileData?: any, linkedinCompanyData?: any, companyName?: string }
 
-  const { url } = payload as { url?: string }
-  if (!url) {
-    console.error('Missing url in payload');
-    return c.json({ error: '`url` is required' }, 400)
+  if (!linkedinProfileData || !linkedinCompanyData) {
+    console.error('Both linkedinProfileData and linkedinCompanyData are missing in payload');
+    return c.json({ error: 'At least one of `linkedinProfileData` or `linkedinCompanyData` is required' }, 400)
   }
 
+  // TODO : Add logic to call Langsmith Agent to create call-pack
+
   try {
-    return c.json({ data: 'success' }, 201);
+    return c.json({ data: [
+      linkedinProfileData,
+      linkedinCompanyData,
+      companyName
+    ] }, 201);
   } catch (err: any) {
     console.error('Bright Data API error:', err);
     return c.json({ 
