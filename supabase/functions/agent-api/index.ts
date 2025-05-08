@@ -202,10 +202,7 @@ app.post('/agent-api/create-call-pack', async (c: Context) => {
     // Process the API response to add required IDs
     const template = processApiResponse(mockApiResponse);
     
-    return c.json({ 
-      template,
-      context // Include the context that would be sent to the AI agent
-    }, 201);
+    return c.json({ data: template    }, 201);
   } catch (err: any) {
     console.error('Error generating template:', err);
     return c.json({ 
