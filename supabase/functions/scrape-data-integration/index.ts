@@ -1,20 +1,13 @@
 import { Hono } from 'jsr:@hono/hono'
 import type { Context } from 'jsr:@hono/hono'
 import { getSupabaseClient } from '../_shared/supabase.ts'
+import { createCorsMiddleware } from "../_shared/cors.ts"
+
 
 const app = new Hono()
 
-// CORS middleware
-app.use('*', async (c, next) => {
-  c.header('Access-Control-Allow-Origin', '*')
-  c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-  c.header('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  if (c.req.method === 'OPTIONS') {
-    c.status(204)
-    return c.body(null)
-  }
-  await next()
-})
+// Apply CORS middleware
+app.use('/scrape-data-integration/*', createCorsMiddleware())
 
 // Custom error types for better error handling
 class BrightDataError extends Error {
@@ -161,24 +154,20 @@ async function fetchBrightData(url: string, datasetId: string) {
 
 // Route: LinkedIn Profile
 app.post('/scrape-data-integration/linkedin-profile', async (c: Context) => {
+  console.log('▶️ scraping linkedin profile', c.req)
   const linkedinDatasetId = 'gd_l1viktl72bvl7bjuj0';
   
-  let payload: any
-  try {
-    payload = await c.req.json()
-  } catch (error) {
-    console.error('Invalid JSON payload:', error);
-    return c.json({ error: 'Invalid JSON' }, 400)
-  }
+  const payload = await c.req.json()
+  console.log('payload', payload)
 
-  const { linkedin_profile_url } = payload as { linkedin_profile_url?: string }
-  if (!linkedin_profile_url) {
-    console.error('Missing linkedin_profile_url in payload');
-    return c.json({ error: '`linkedin_profile_url` is required' }, 400)
+  const { url } = payload as { url?: string }
+  if (!url) {
+    console.error('Missing url in payload');
+    return c.json({ error: '`url` is required' }, 400)
   }
 
   try {
-    const scraped = await fetchBrightData(linkedin_profile_url, linkedinDatasetId);
+    const scraped = await fetchBrightData(url, linkedinDatasetId);
     
     // Transform the scraped data to keep only relevant fields
     const transformedData = transformLinkedInProfileData(scraped);
@@ -207,7 +196,7 @@ app.post('/scrape-data-integration/linkedin-profile', async (c: Context) => {
 })
 
 // Route: Company Profile
-app.post('/scrape-data-integration/linkedin-company', async (c: Context) => {
+app.post('/scrape-data-integration/linkedin-company-profile', async (c: Context) => {
   const companyDatasetId = 'BRIGHTDATA_COMPANY_DATASET_ID'; // Replace with your actual dataset ID
   
   let payload: any
