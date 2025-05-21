@@ -1,12 +1,12 @@
 // Import necessary modules
 import { serve } from "https://deno.land/std@0.114.0/http/server.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient } from "jsr:@supabase/supabase-js@2.49.4";
 
 // Retrieve your API keys from environment variables
-const DEEPGRAM_API_KEY = Deno.env.get("DEEPGRAM_API_KEY") ?? Deno.env.get("DEEPGRAM_API_KEY");
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("SUPABASE_URL");
+const DEEPGRAM_API_KEY = Deno.env.get("DEEPGRAM_API_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 // Use SUPABASE_ANON_KEY for client-side auth checks
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
 if (!DEEPGRAM_API_KEY) {
   throw new Error("DEEPGRAM_API_KEY is not set in environment variables.");
@@ -34,8 +34,8 @@ async function checkUser(token: string | null) {
 
   // Create a Supabase client configured to use the provided token
   const supabaseClient = createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY, // Use anon key for client-side checks
+    SUPABASE_URL!,
+    SUPABASE_ANON_KEY!, // Use anon key for client-side checks
     {
       global: {
         headers: { Authorization: `Bearer ${token}` }, // Pass token in Authorization header format
