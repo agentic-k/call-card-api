@@ -1,5 +1,5 @@
 // functions/_shared/supabase.ts
-import { createClient, SupabaseClient } from 'jsr:@supabase/supabase-js'
+import { createClient, SupabaseClient } from 'jsr:@supabase/supabase-js@2.49.4'
 import type { Context } from 'jsr:@hono/hono'
 
 /**
