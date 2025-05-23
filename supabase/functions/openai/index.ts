@@ -112,104 +112,106 @@ Deno.serve(async (req: Request) => {
       apiKey: Deno.env.get('OPENAI_API_KEY') ?? '',
     })
 
+    const systemPrompt = `You are an assistant that analyzes a sales‑call transcript for the sales rep. Identify and list "topics / questions" from a sales call transcript of a customer call and determine which of these "topics / questions" have been asked.\n`
+    + `For each question object, determine:\n`
+    + `- question_asked: "Yes" or "No"\n`
+    + `- topic_discussed: "Yes" or "No"\n`
+    + `- answer_reference: exact timestamp(s) or transcript line(s), or empty string\n`
+    + `\n`
+    + `Output: a pure JSON array of objects, each with:\n`
+    + `- "question_id" (string): matches the input question's id\n`
+    + `- "question" (string): the question text\n`
+    + `- "question_asked" (string): "Yes" or "No"\n`
+    + `- "topic_discussed" (string): "Yes" or "No"\n`
+    + `- "answer_reference" (string): timestamp(s) or empty\n`
+    + `Do not output anything else.\n`;
+
+    const responseFormat = {
+      "type": "json_schema" as const,
+      "json_schema": {
+        "name": "analyze_questions_response",
+        "strict": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "responses": {
+              "type": "array",
+              "description": "List of analyzed question responses",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "question_id": {
+                    "type": "string",
+                    "description": "Matches the input question's id"
+                  },
+                  "question": {
+                    "type": "string",
+                    "description": "The text of the question/topic"
+                  },
+                  "question_asked": {
+                    "type": "string",
+                    "enum": [
+                      "Yes",
+                      "No"
+                    ],
+                    "description": "Whether the question was asked"
+                  },
+                  "topic_discussed": {
+                    "type": "string",
+                    "enum": [
+                      "Yes",
+                      "No"
+                    ],
+                    "description": "Whether the topic was at least discussed"
+                  },
+                  "answer_reference": {
+                    "type": "string",
+                    "description": "Exact timestamp(s) or transcript line(s) where the question was answered, or empty string"
+                  }
+                },
+                "required": [
+                  "question_id",
+                  "question",
+                  "question_asked",
+                  "topic_discussed",
+                  "answer_reference"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "responses"
+          ],
+          "additionalProperties": false
+        }
+      }
+    };
+
+    const userPrompt = `Transcript:\n`
+    + `\`\`\`\n`
+    + `${transcript}\n`
+    + `\`\`\`\n`
+    + `Questions/Topics (with IDs):\n`
+    + `\`\`\`\n`
+    + `${questions.map(q => `{"id":"${q.id}","text":"${q.text.replace(/"/g, '\"')}"}`).join(",\n")}\n`
+    + `\`\`\`\n`;
+
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: `You are an assistant that analyzes a sales‑call transcript.
-          Identify and list "topics / questions" from a sales call transcript of a customer call and determine which of these "topics / questions" have been answered. 
-
-          For each question object, determine:
-            - answered: "Yes" or "No"
-            - topicDiscussed: "Yes" or "No"
-            - answerReference: exact timestamp(s) or transcript line(s), or empty string
-          
-          **Output**: a pure JSON array of objects, each with:
-            - "id" (string)          → matches the input question's id  
-            - "question" (string)    → the question text  
-            - "answered" (string)    → "Yes" or "No"  
-            - "topicDiscussed" (string) → "Yes" or "No"  
-            - "answerReference" (string) → timestamp(s) or empty
-          
-          Do not output anything else.`
+          content: systemPrompt
         },
         {
           role: 'user',
-          content: `Transcript:
-"""
-${transcript}
-"""
-
-Questions/Topics (with IDs):
-"""
-${questions.map(q => `{"id":"${q.id}","text":"${q.text.replace(/"/g, '\"')}"}`).join(",\n")}
-"""`
+          content: userPrompt
         }
       ],
-      response_format: {
-        "type": "json_schema",
-        "json_schema": {
-          "name": "analyze_questions_response",
-          "strict": true,
-          "schema": {
-            "type": "object",
-            "properties": {
-              "responses": {
-                "type": "array",
-                "description": "List of analyzed question responses",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "description": "Matches the input question’s id"
-                    },
-                    "question": {
-                      "type": "string",
-                      "description": "The text of the question/topic"
-                    },
-                    "answered": {
-                      "type": "string",
-                      "enum": [
-                        "Yes",
-                        "No"
-                      ],
-                      "description": "Whether the question was answered"
-                    },
-                    "topicDiscussed": {
-                      "type": "string",
-                      "enum": [
-                        "Yes",
-                        "No"
-                      ],
-                      "description": "Whether the topic was at least discussed"
-                    },
-                    "answerReference": {
-                      "type": "string",
-                      "description": "Exact timestamp(s) or transcript line(s) where the question was answered, or empty string"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "question",
-                    "answered",
-                    "topicDiscussed",
-                    "answerReference"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            },
-            "required": [
-              "responses"
-            ],
-            "additionalProperties": false
-          }
-        }
-      },
+      response_format: responseFormat,
       temperature: 0,
-      max_completion_tokens: 9184,
+      max_completion_tokens: 4000,
       top_p: 1,
       frequency_penalty: 0,
       presence_penalty: 0,
