@@ -39,7 +39,7 @@ export async function lsFetch(path: string, options: RequestInit = {}) {
 
     if (!res.ok) {
       const errBody = await res.text();
-      console.error(`[lsFetch] Error response body: ${errBody}`);
+      console.error(`[lsFetch] ${res.status} error for ${path}: ${errBody}`);
       throw new Error(`LangSmith fetch failed [${path}]: ${errBody}`);
     }
     
@@ -47,11 +47,7 @@ export async function lsFetch(path: string, options: RequestInit = {}) {
     return data;
 
   } catch (error) {
-    console.error(`[lsFetch] Error details:`, error);
-    if (error instanceof Error) {
-      console.error(`[lsFetch] Error message: ${error.message}`);
-      console.error(`[lsFetch] Error stack: ${error.stack}`);
-    }
+    console.error(`[lsFetch] Failed to fetch ${path}:`, error instanceof Error ? error.message : error);
     return { error: 'An error occurred while fetching from Agent' };
   }
 }
@@ -61,16 +57,24 @@ export async function lsFetch(path: string, options: RequestInit = {}) {
 // --------------------
 export async function createThread(): Promise<string> {
   try {
-    const response = await lsFetch('/threads', { method: 'POST' });
+    const response = await lsFetch('/threads', { 
+      method: 'POST',
+      body: JSON.stringify({}) // Send empty object instead of no body
+    });
     
-    if (!response.id) {
-      console.error('[createThread] Failed to get thread ID from response', response);
+    if (response.error) {
+      throw new Error(response.error);
+    }
+    
+    if (!response.thread_id) {
+      console.error('[createThread] No thread ID in response:', response);
       throw new Error('Failed to create thread: No ID returned');
     }
-    return response.id;
+    
+    return response.thread_id;
   } catch (error) {
-    console.error('[createThread] Error creating thread:', error);
-    throw error; // Re-throw to allow caller to handle
+    console.error('[createThread] Thread creation failed:', error instanceof Error ? error.message : error);
+    throw error;
   }
 }
 

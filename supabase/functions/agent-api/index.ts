@@ -41,7 +41,7 @@ app.post('/agent-api/create-call-pack', async (c: Context) => {
 
     return c.json(meeting)
   } catch (err: any) {
-    console.error('🛑 Template generation error:', err)
+    console.error('Template generation failed:', err.message || err)
     return c.json({ error: err.message }, 502)
   }
 })
