@@ -1,44 +1,70 @@
-// Deepgram connection setup and WS handlers
-import { config } from "./utils.ts";
+// deepgram.ts
+import { safeCloseSocket } from "./utils.ts";
 
-// Deepgram connection setup and WS handlers
-const WS_ENDPOINT = "wss://api.deepgram.com/v1/listen";
+const DEEPGRAM_WS_ENDPOINT = "wss://api.deepgram.com/v1/listen";
+const DEEPGRAM_API_KEY = Deno.env.get("DEEPGRAM_API_KEY")!;
+console.info("DEEPGRAM_API_KEY:", Deno.env.get("DEEPGRAM_API_KEY"));
+
+if (!DEEPGRAM_API_KEY) {
+  throw new Error("DEEPGRAM_API_KEY is not set");
+}
 
 /**
- * Create & open a socket to Deepgram
+ * Establishes a WebSocket connection to Deepgram
  */
-export function createDeepgramSocket(): Promise<WebSocket> {
+export function setupDeepgramConnection(): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(
-      `${WS_ENDPOINT}?encoding=linear16&sample_rate=48000`,
-      ["token", config.DEEPGRAM_API_KEY]
-    );
+    try {
+      const ws = new WebSocket(
+        `${DEEPGRAM_WS_ENDPOINT}?encoding=linear16&sample_rate=48000`,
+        ["token", DEEPGRAM_API_KEY],
+      );
 
-    ws.onopen  = () => resolve(ws);
-    ws.onerror = () => reject(new Error("DG WS error"));
-    ws.onclose = () => reject(new Error("DG WS closed early"));
+      ws.onopen = () => {
+        console.info("Connected to Deepgram");
+        resolve(ws);
+      };
+      ws.onerror = (e) => {
+        console.error("Deepgram error:", e);
+        reject(new Error("Deepgram WebSocket error"));
+      };
+      ws.onclose = (e) => {
+        console.warn(`Deepgram closed: ${e.code}, ${e.reason}`);
+        reject(new Error("Deepgram closed before use"));
+      };
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 
 /**
- * Attach handlers for message & errors
+ * Bridges messages between clientSocket and the Deepgram socket
  */
-export function attachDeepgramHandlers(
-  client: WebSocket,
-  dg: WebSocket
-) {
-  // Forward transcripts
-  dg.onmessage = (e) => client.send(e.data);
-
-  // Forward audio
-  client.onmessage = (e) => {
-    if (typeof e.data !== "string" && dg.readyState === WebSocket.OPEN) {
-      dg.send(e.data);
+export function wireSockets(clientSocket: WebSocket, deepgramSocket: WebSocket) {
+  deepgramSocket.onmessage = (ev) => {
+    if (clientSocket.readyState === WebSocket.OPEN) {
+      clientSocket.send(ev.data);
     }
   };
 
-  // Cleanup on errors
-  dg.onerror   = () => client.close(1011, "DG error");
-  dg.onclose   = (e) => client.close(e.code, e.reason);
-  client.onclose = () => dg.close(1000, "Client closed");
+  clientSocket.onmessage = (ev) => {
+    try {
+      if (deepgramSocket.readyState === WebSocket.OPEN && ev.data instanceof ArrayBuffer) {
+        deepgramSocket.send(ev.data);
+      }
+    } catch (err) {
+      console.error("Client → Deepgram forwarding error:", err);
+      safeCloseSocket(clientSocket, 1011, "Forwarding failed");
+    }
+  };
+
+  deepgramSocket.onerror = (ev) => {
+    console.error("Deepgram runtime error:", ev);
+    safeCloseSocket(clientSocket, 1011, "Deepgram error");
+  };
+  deepgramSocket.onclose = (ev) => {
+    console.info(`Deepgram terminated: ${ev.code}`, ev.reason);
+    safeCloseSocket(clientSocket, ev.code, ev.reason);
+  };
 }

@@ -1,49 +1,77 @@
+// index.ts
 import { serve } from "https://deno.land/std@0.114.0/http/server.ts";
-import { corsHeaders, safeClose } from "./libs/utils.ts";
 import { checkUser } from "./libs/auth.ts";
-import { createDeepgramSocket, attachDeepgramHandlers } from "./libs/deepgram.ts";
+import { corsHeaders, safeCloseSocket } from "./libs/utils.ts";
+import { setupDeepgramConnection, wireSockets } from "./libs/deepgram.ts";
 
-/**
- * Extract `jwt-` token from headers
- */
-function extractJwt(req: Request): string | undefined {
-  const hdr = req.headers.get("Sec-WebSocket-Protocol") ?? "";
-  return hdr.split(",").map(s => s.trim())
-    .find(p => p.startsWith("jwt-"))
-    ?.replace("jwt-", "");
-}
+serve(async (req: Request) => {
+  console.info(`Incoming request: ${req.method} ${req.url}`);
 
-serve(async (req) => {
-  // Handle preflight
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
 
-  // Must be WS upgrade
-  if ((req.headers.get("upgrade") ?? "").toLowerCase() !== "websocket") {
-    return new Response("Must upgrade", { status: 400, headers: corsHeaders });
+  if (req.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+    return new Response("Expected a WebSocket upgrade", {
+      status: 400,
+      headers: corsHeaders,
+    });
   }
 
-  // Auth
-  const jwt = extractJwt(req);
+  // Extract JWT from Sec-WebSocket-Protocol
+  const protocols = (req.headers.get("Sec-WebSocket-Protocol") ?? "")
+    .split(",")
+    .map((p) => p.trim());
+  const jwt = protocols.find((p) => p.startsWith("jwt-"))?.slice(4) ?? null;
+
   const user = await checkUser(jwt);
   if (!user) {
-    return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+    return new Response("Authentication failed", {
+      status: 401,
+      headers: corsHeaders,
+    });
   }
 
-  // Upgrade & wire sockets
-  const { socket, response } = Deno.upgradeWebSocket(req, {
-    protocol: jwt ? `jwt-${jwt}` : undefined,
-  });
+  console.info("starting deepgram connection for user:", user.id);
+  // Perform WebSocket upgrade
+  let clientSocket: WebSocket;
+  let upgradeResponse: Response;
+  try {
+    const { socket, response } = Deno.upgradeWebSocket(req, {
+      protocol: jwt ? `jwt-${jwt}` : "",
+    });
+    clientSocket = socket;
+    upgradeResponse = response;
+  } catch (e) {
+    console.error("Upgrade failed:", e);
+    return new Response("WebSocket upgrade error", {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
 
-  socket.onopen = async () => {
+  console.info("connecting to deepgram...");
+
+  // Once client opens, connect Deepgram and wire messages
+  clientSocket.onopen = async () => {
+    console.info("Client WebSocket open");
     try {
-      const dg = await createDeepgramSocket();
-      attachDeepgramHandlers(socket, dg);
-    } catch {
-      safeClose(socket, 1011, "DG failed");
+      const dgSocket = await setupDeepgramConnection();
+      wireSockets(clientSocket, dgSocket);
+    } catch (e) {
+      console.error("Deepgram setup failed:", e);
+      safeCloseSocket(clientSocket, 1011, "Deepgram connection error");
     }
   };
 
-  return response;
+  clientSocket.onclose = (ev) => {
+    console.info(`Client closed: code=${ev.code}, reason=${ev.reason}`);
+    safeCloseSocket(null, 1000, "Client closed");
+  };
+  clientSocket.onerror = (ev) => {
+    console.error("Client socket error:", ev);
+    safeCloseSocket(null, 1011, "Client error");
+  };
+
+  return upgradeResponse;
 });

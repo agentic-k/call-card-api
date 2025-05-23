@@ -1,32 +1,34 @@
-// auth.ts `checkUser()` and auth helpers
+// auth.ts
+import { createClient } from "jsr:@supabase/supabase-js@2.49.4";
+import { User } from "./types.ts";
 
-import { createClient } from "jsr:@supabase/supabase-js@2.49.8";
-import { config } from "./utils.ts";
-import type { User } from "./types.ts";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error("SUPABASE_URL or SUPABASE_ANON_KEY is not set");
+}
 
 /**
- * Verify JWT, return User or null
+ * Verifies a Supabase JWT from Sec-WebSocket-Protocol
  */
-export async function checkUser(token?: string): Promise<User | null> {
-  if (!token) return null;
-
-  // 1. Init client once
-  const client = createClient(
-    config.SUPABASE_URL,
-    config.SUPABASE_ANON_KEY,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
-  );
-
-  // 2. Try session
-  const { data: sessionRes, error: sessionErr } = await client.auth.getSession();
-  if (sessionErr || !sessionRes.session) {
-    // 3. Fallback to getUser
-    const { data: userRes, error: userErr } = await client.auth.getUser();
-    if (userErr || !userRes.user) return null;
-    return { id: userRes.user.id, email: userRes.user.email || undefined };
+export async function checkUser(token: string | null): Promise<User | null> {
+  if (!token) {
+    console.warn("No authentication token provided");
+    return null;
   }
 
-  // 4. Return from session
-  const user = sessionRes.session.user;
-  return { id: user.id, email: user.email || undefined };
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  // Use getUser for server-side verification :contentReference[oaicite:3]{index=3}
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    console.error("Authentication failed:", userError?.message);
+    return null;
+  }
+
+  console.info("Authenticated user:", user.id);
+  return user;
 }
