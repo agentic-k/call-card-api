@@ -1,14 +1,24 @@
 import OpenAI from 'jsr:@openai/openai';
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { Hono } from 'jsr:@hono/hono';
+import { cors } from 'jsr:@hono/hono/cors';
 
-console.log(`Helloo: Function "openai" up and running!`)
+console.log(`Hello: Function "openai" up and running with Hono!`);
 
-// Define CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+// Define custom context type
+type Variables = {
+  user: any;
+};
 
+const app = new Hono<{ Variables: Variables }>();
+
+// Configure CORS
+app.use('*', cors({
+  origin: '*',
+  allowHeaders: ['authorization', 'x-client-info', 'apikey', 'content-type'],
+}));
+
+// Helper function to check user authentication
 async function checkUser(token: string | null) {
   if (!token) {
     console.error('No authentication token provided');
@@ -17,8 +27,8 @@ async function checkUser(token: string | null) {
 
   // Create a Supabase client configured to use the provided token
   const supabaseClient = createClient(
-    Deno.env.get('SUPABASE_URL') ?? Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY') ?? '', // Use anon key for client-side checks
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '', // Use anon key for client-side checks
     {
       global: {
         headers: { Authorization: `Bearer ${token}` }, // Pass token in Authorization header format
@@ -55,62 +65,40 @@ async function checkUser(token: string | null) {
   return user;
 }
 
-
-// const testAsnwer = "{\"responses\":[{\"id\":\"174fe2a6-89b9-41e0-b698-9791135b510c\",\"question\":\"Thank you for taking the time to speak with me today. How are things going in your industry right now?\",\"answered\":\"No\",\"topicDiscussed\":\"No\",\"answerReference\":\"\"},{\"id\":\"569e0e8c-9f2a-462b-bba1-0caf3ea8a3b8\",\"question\":\"I've reviewed your company's recent initiatives, and I'm excited to discuss how our solutions can support your goals.\",\"answered\":\"No\",\"topicDiscussed\":\"No\",\"answerReference\":\"\"},{\"id\":\"87f3e532-9d08-4a30-b477-fe5d51192b63\",\"question\":\"Can you share some of the challenges you're currently facing with your existing software solutions?\",\"answered\":\"Yes\",\"topicDiscussed\":\"Yes\",\"answerReference\":\"@0:35 - @1:54\"},{\"id\":\"92e6eaa2-72c2-47b2-8d53-ecea043f3eba\",\"question\":\"Who else would be involved in the decision-making process for this project?\",\"answered\":\"No\",\"topicDiscussed\":\"No\",\"answerReference\":\"\"},{\"id\":\"c7119ef5-3e99-4ef3-81eb-13a0d311b4c6\",\"question\":\"What is your timeline for implementing a new solution?\",\"answered\":\"Yes\",\"topicDiscussed\":\"Yes\",\"answerReference\":\"@10:47 - @11:19\"},{\"id\":\"42d3470e-beb1-4114-8ecb-c65883401dec\",\"question\":\"Do you have a budget range in mind for this project?\",\"answered\":\"Yes\",\"topicDiscussed\":\"Yes\",\"answerReference\":\"@6:10 - @7:51\"},{\"id\":\"0974caa3-1d27-4458-8735-cc73479b2b8e\",\"question\":\"Our software typically helps companies like yours achieve a X% improvement in [specific metric] within [timeframe].\",\"answered\":\"No\",\"topicDiscussed\":\"No\",\"answerReference\":\"\"},{\"id\":\"f704fd22-40e6-4633-87b7-4c42b98ac4c0\",\"question\":\"Here's how we differentiate from other solutions in the market...\",\"answered\":\"No\",\"topicDiscussed\":\"No\",\"answerReference\":\"\"},{\"id\":\"34074f05-45be-484e-97bd-edc0e19bc29b\",\"question\":\"Let me share a quick success story: [Brief case study relevant to the client's industry].\",\"answered\":\"Yes\",\"topicDiscussed\":\"Yes\",\"answerReference\":\"@8:14 - @8:40\"},{\"id\":\"b03823ad-79f5-480e-9c34-03fb2055005a\",\"question\":\"What concerns do you have about implementing a new software solution?\",\"answered\":\"Yes\",\"topicDiscussed\":\"Yes\",\"answerReference\":\"@4:33 - @5:00\"},{\"id\":\"e3873770-e893-4fa9-ae7d-88b17f77782e\",\"question\":\"Many of our clients initially had concerns about [common objection], but found that [solution].\",\"answered\":\"No\",\"topicDiscussed\":\"No\",\"answerReference\":\"\"},{\"id\":\"8548204d-0fd6-4dc7-8723-025b9f31c540\",\"question\":\"Considering the potential improvements, how do you see this impacting your bottom line?\",\"answered\":\"No\",\"topicDiscussed\":\"No\",\"answerReference\":\"\"},{\"id\":\"678a3182-7c49-4e64-959b-03b776763520\",\"question\":\"Based on what we've discussed, do you see enough value to move forward with a trial or demo?\",\"answered\":\"No\",\"topicDiscussed\":\"No\",\"answerReference\":\"\"},{\"id\":\"4386937a-3558-4563-adde-2c5e6989b68f\",\"question\":\"What would be the best next step for us to take together?\",\"answered\":\"Yes\",\"topicDiscussed\":\"Yes\",\"answerReference\":\"@10:47 - @11:19\"},{\"id\":\"8222b958-d324-4856-b211-6ce1ebb37a5e\",\"question\":\"Can we schedule a follow-up meeting to discuss this with your team?\",\"answered\":\"No\",\"topicDiscussed\":\"No\",\"answerReference\":\"\"},{\"id\":\"2384d47f-3a04-4cbd-bd00-fc41b18f4f50\",\"question\":\"I'll follow up with an email summarizing our conversation and the agreed next steps.\",\"answered\":\"Yes\",\"topicDiscussed\":\"Yes\",\"answerReference\":\"@11:19\"},{\"id\":\"10e9f35e-e470-4d3e-8291-2d18c4b72d48\",\"question\":\"Thank you again for your time and consideration. I look forward to our next conversation.\",\"answered\":\"No\",\"topicDiscussed\":\"No\",\"answerReference\":\"\"}]}"
-// return new Response(JSON.stringify({ questions: testAsnwer }), {
-//   headers: {
-//     ...corsHeaders,
-//     'Content-Type': 'application/json',
-//   },
-// })
-
-// Define the function
-Deno.serve(async (req: Request) => {
+// Authentication middleware
+app.use('*', async (c, next) => {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader ? authHeader.replace('Bearer ', '') : null;
+  const user = await checkUser(token);
   
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  if (!user) {
+    return c.json({ error: 'Unauthorized' }, 401);
   }
+  
+  // Add user to the context
+  c.set('user', user);
+  await next();
+});
 
+// Main route for analyzing transcripts
+app.post('/', async (c) => {
   try {
-    const token = req.headers.get('Authorization')?.replace('Bearer ', '') as string | null
-
-    // Validate user
-    const user = await checkUser(token)
-
-    // VALIDATE USER
-    // If user is null (invalid/missing token or auth error), return 401
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401,
-      })
-    }
-
-    // User is validated, proceed with POST check and OpenAI logic
-    if (req.method !== 'POST') {
-      return new Response('Method not allowed', { status: 405, headers: corsHeaders })
-    }
-
-    const payload = await req.json()
-    const transcript = payload.transcript || ''
-    const questions = payload.questions || []
+    const payload = await c.req.json();
+    const transcript = payload.transcript || '';
+    const questions = payload.questions || [];
 
     if (!transcript || !Array.isArray(questions)) {
-      return new Response(JSON.stringify({ error: 'Transcript and questions are required' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      })
+      return c.json({ error: 'Transcript and questions are required' }, 400);
     }
 
-    const apiKey = Deno.env.get('OPENAI_API_KEY')
+    const apiKey = Deno.env.get('OPENAI_API_KEY');
     if (!apiKey) {
-      throw new Error('Missing OPENAI_API_KEY environment variable')
+      throw new Error('Missing OPENAI_API_KEY environment variable');
     }
 
     const openai = new OpenAI({
-      apiKey: Deno.env.get('OPENAI_API_KEY') ?? '',
-    })
+      apiKey,
+    });
 
     const systemPrompt = `You are an assistant that analyzes a sales‑call transcript for the sales rep. Identify and list "topics / questions" from a sales call transcript of a customer call and determine which of these "topics / questions" have been asked.\n`
     + `For each question object, determine:\n`
@@ -215,30 +203,31 @@ Deno.serve(async (req: Request) => {
       top_p: 1,
       frequency_penalty: 0,
       presence_penalty: 0,
-      store: true
-    })
+    });
 
-    const reply = response.choices[0].message?.content
+    const reply = response.choices[0].message?.content;
 
     if (!reply) {
-      throw new Error('OpenAI did not return a reply')
+      throw new Error('OpenAI did not return a reply');
     }
 
-    return new Response(JSON.stringify({ questions: reply }), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-      },
-    })
+    return c.json({ questions: reply });
   } catch (error) {
-    console.error('Error in function:', error)
+    console.error('Error in function:', error);
     // Type check the error before accessing properties
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-    const status = error instanceof Error && (error.message === 'Missing Authorization header' || error.message === 'Unauthorized') ? 401 : 500
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const status = error instanceof Error && 
+      (error.message === 'Missing Authorization header' || error.message === 'Unauthorized') 
+      ? 401 : 500;
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: status,
-    })
+    return c.json({ error: errorMessage }, status);
   }
-})
+});
+
+// Handle OPTIONS requests for CORS preflight
+app.options('*', (c) => {
+  return c.text('ok');
+});
+
+// Export for Deno to serve
+Deno.serve(app.fetch);

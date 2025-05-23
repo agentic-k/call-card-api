@@ -1,3 +1,8 @@
 {
-  "imports": {}
+  "imports": {
+    "@hono/hono": "jsr:@hono/hono",
+    "@hono/hono/cors": "jsr:@hono/hono/cors",
+    "@openai/openai": "jsr:@openai/openai",
+    "@supabase/supabase-js": "jsr:@supabase/supabase-js@2"
+  }
 }
