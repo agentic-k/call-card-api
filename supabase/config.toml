@@ -280,6 +280,8 @@ enabled = true
 # Configure one of the supported request policies: `oneshot`, `per_worker`.
 # Use `oneshot` for hot reload, or `per_worker` for load testing.
 policy = "oneshot"
+# policy = "per_worker"    # TODO : this is for having the deep-gram, I don't know if I need to check this in
+
 # Port to attach the Chrome inspector for debugging edge functions.
 inspector_port = 8083
 # The Deno major version to use.
