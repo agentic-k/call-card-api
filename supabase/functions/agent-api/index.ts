@@ -15,21 +15,29 @@ import {
   type QuestionInput
 } from './libs/openai-helper.ts'
 
+import { shouldUseMockData, getMockCallPackData } from './libs/mock-data.ts'
+
 // Validate environment variables
 validateEnv()
 validateOpenAIEnv()
 
 const app = new Hono()
 
-// --------------------
+// ---------------------------------------------------------------------------------------------------- //
 // 2) Global Middlewares
-// --------------------
+// ---------------------------------------------------------------------------------------------------- //
 app.use('/agent-api/*', createCorsMiddleware())
 
-// --------------------
+// ---------------------------------------------------------------------------------------------------- //
 // Create-Call-Pack Route
-// --------------------
+// ---------------------------------------------------------------------------------------------------- //
 app.post('/agent-api/create-call-pack', async (c: Context) => {
+  // Check if we should use mock data
+  if (shouldUseMockData()) {
+    console.log('Using mock data for create-call-pack')
+    return c.json(getMockCallPackData())
+  }
+
   const payload = await c.req.json() as AITemplateRequest
 
   try {
@@ -46,9 +54,9 @@ app.post('/agent-api/create-call-pack', async (c: Context) => {
   }
 })
 
-// --------------------
+// ---------------------------------------------------------------------------------------------------- //
 // OpenAI Transcript Analysis Route
-// --------------------
+// ---------------------------------------------------------------------------------------------------- //
 /**
  * @param transcript - The transcript of the call
  * @param questions - The questions to check if they were answered
