@@ -363,3 +363,25 @@ entrypoint = "./functions/agent-api/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/agent-api/*.html" ]
+
+[functions.openai]
+enabled = true
+verify_jwt = true
+import_map = "./functions/openai/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/openai/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/openai/*.html" ]
+
+[functions.deepgram]
+enabled = true
+verify_jwt = false
+import_map = "./functions/deepgram/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/deepgram/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/deepgram/*.html" ]
