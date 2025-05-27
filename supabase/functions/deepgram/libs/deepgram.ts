@@ -3,7 +3,6 @@ import { safeCloseSocket } from "./utils.ts";
 
 const DEEPGRAM_WS_ENDPOINT = "wss://api.deepgram.com/v1/listen";
 const DEEPGRAM_API_KEY = Deno.env.get("DEEPGRAM_API_KEY")!;
-console.info("DEEPGRAM_API_KEY:", Deno.env.get("DEEPGRAM_API_KEY"));
 
 if (!DEEPGRAM_API_KEY) {
   throw new Error("DEEPGRAM_API_KEY is not set");
