@@ -280,7 +280,8 @@ enabled = false
 enabled = true
 # Configure one of the supported request policies: `oneshot`, `per_worker`.
 # Use `oneshot` for hot reload, or `per_worker` for load testing.
-policy = "oneshot"
+# policy = "oneshot"    # this is normal
+policy = "per_worker"   # this is for Deepgram
 
 # Port to attach the Chrome inspector for debugging edge functions.
 inspector_port = 8083
@@ -384,4 +385,3 @@ entrypoint = "./functions/deepgram/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/deepgram/*.html" ]
-# policy = "per_worker"    # TODO : this is for having the deep-gram, I don't know if I need to check this in

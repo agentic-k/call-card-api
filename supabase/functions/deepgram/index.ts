@@ -56,10 +56,15 @@ serve(async (req: Request) => {
   clientSocket.onopen = async () => {
     console.info("Client WebSocket open");
     try {
+      console.info("Attempting to setup Deepgram connection...");
       const dgSocket = await setupDeepgramConnection();
+      console.info("Deepgram connection established, wiring sockets...");
       wireSockets(clientSocket, dgSocket);
+      console.info("Sockets wired successfully");
     } catch (e) {
       console.error("Deepgram setup failed:", e);
+      const error = e as Error;
+      console.error("Error details:", error.message, error.stack);
       safeCloseSocket(clientSocket, 1011, "Deepgram connection error");
     }
   };

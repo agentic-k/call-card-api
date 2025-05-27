@@ -14,6 +14,9 @@ if (!DEEPGRAM_API_KEY) {
 export function setupDeepgramConnection(): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     try {
+      console.info("Creating WebSocket connection to Deepgram...");
+      console.info("API key available:", !!DEEPGRAM_API_KEY);
+      
       const ws = new WebSocket(
         `${DEEPGRAM_WS_ENDPOINT}?encoding=linear16&sample_rate=48000`,
         ["token", DEEPGRAM_API_KEY],
@@ -32,6 +35,7 @@ export function setupDeepgramConnection(): Promise<WebSocket> {
         reject(new Error("Deepgram closed before use"));
       };
     } catch (e) {
+      console.error("Error creating Deepgram WebSocket:", e);
       reject(e);
     }
   });
