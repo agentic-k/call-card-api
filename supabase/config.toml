@@ -280,8 +280,8 @@ enabled = false
 enabled = true
 # Configure one of the supported request policies: `oneshot`, `per_worker`.
 # Use `oneshot` for hot reload, or `per_worker` for load testing.
-# policy = "oneshot"    # this is normal
-policy = "per_worker"   # this is for Deepgram
+policy = "oneshot"    # this is normal
+# policy = "per_worker"   # this is for Deepgram, disables hotreload
 
 # Port to attach the Chrome inspector for debugging edge functions.
 inspector_port = 8083
@@ -379,6 +379,7 @@ entrypoint = "./functions/openai/index.ts"
 enabled = true
 verify_jwt = false
 import_map = "./functions/deepgram/deno.json"
+# policy = "per_worker"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/deepgram/index.ts"

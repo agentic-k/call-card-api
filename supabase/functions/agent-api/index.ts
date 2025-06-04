@@ -33,12 +33,13 @@ app.use('/agent-api/*', createCorsMiddleware())
 // ---------------------------------------------------------------------------------------------------- //
 app.post('/agent-api/create-call-pack', async (c: Context) => {
   // Check if we should use mock data
-  if (shouldUseMockData()) {
+  if (shouldUseMockData() ) {
     console.log('Using mock data for create-call-pack')
     return c.json(getMockCallPackData())
   }
 
   const payload = await c.req.json() as AITemplateRequest
+  // console.debug('payload', payload)
 
   try {
     const threadId = await createThread()
@@ -48,9 +49,9 @@ app.post('/agent-api/create-call-pack', async (c: Context) => {
     const meeting = processApiResponse(apiResp)
 
     return c.json(meeting)
-  } catch (err: any) {
-    console.error('Template generation failed:', err.message || err)
-    return c.json({ error: err.message }, 502)
+  } catch (err: unknown) {
+    console.error('Template generation failed:', err instanceof Error ? err.message : err)
+    return c.json({ error: err instanceof Error ? err.message : 'Unknown error occurred' }, 502)
   }
 })
 

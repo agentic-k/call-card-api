@@ -26,7 +26,6 @@ export interface AITemplateRequest {
     templateContext: string;
     linkedinProfileData?: any;
     linkedinCompanyData?: any;
-    companyName?: string;
 }
 
 export interface APIResponse {

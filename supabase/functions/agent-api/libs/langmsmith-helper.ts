@@ -4,6 +4,10 @@ import type { APIResponse, MeetingTemplate } from './types.ts'
 // --------------------
 // Environment Variables
 // --------------------
+// NOTE: When running Supabase functions locally, use host.docker.internal instead of 
+// 127.0.0.1 or localhost in LANGSMITH_API_URL to connect to services running on host machine
+// Example: http://host.docker.internal:2024 instead of http://127.0.0.1:2024
+
 const {
   LANGSMITH_API_KEY,
   LANGSMITH_API_URL,
@@ -28,8 +32,8 @@ export function validateEnv() {
 // --------------------
 export async function lsFetch(path: string, options: RequestInit = {}) {
   try {
-    
-    const res = await fetch(`${LANGSMITH_API_URL}${path}`, {
+    const url = `${LANGSMITH_API_URL}${path}`;
+    const res = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': LANGSMITH_API_KEY!
@@ -57,28 +61,27 @@ export async function lsFetch(path: string, options: RequestInit = {}) {
 // --------------------
 export async function createThread(): Promise<string> {
   try {
-    const response = await lsFetch('/threads', { 
+    const data = await lsFetch('/threads', {
       method: 'POST',
-      body: JSON.stringify({}) // Send empty object instead of no body
+      body: JSON.stringify({
+        metadata: {},
+        if_exists: "raise"
+      })
     });
-    
-    if (response.error) {
-      throw new Error(response.error);
+
+    if (data.error || !data.thread_id) {
+      throw new Error(data.error || 'No thread ID in response');
     }
-    
-    if (!response.thread_id) {
-      console.error('[createThread] No thread ID in response:', response);
-      throw new Error('Failed to create thread: No ID returned');
-    }
-    
-    return response.thread_id;
+
+    return data.thread_id;
   } catch (error) {
-    console.error('[createThread] Thread creation failed:', error instanceof Error ? error.message : error);
-    throw error;
+    console.error('[createThread] Error:', error instanceof Error ? error.message : error);
+    throw new Error('Failed to create thread');
   }
 }
 
-export function runAssistant(threadId: string, input: unknown) {
+// TODO: make input to always be string and not unknown
+export function runAssistant(threadId: string, input: string | unknown) {
   return lsFetch(
     `/threads/${threadId}/runs/wait`,
     {
