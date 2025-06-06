@@ -135,26 +135,35 @@ export type Database = {
       }
       profiles: {
         Row: {
+          company_data: Json | null
+          company_url: string | null
           created_at: string
           display_name: string | null
           email: string
           id: string
+          personal_context: string | null
           updated_at: string
           username: string | null
         }
         Insert: {
+          company_data?: Json | null
+          company_url?: string | null
           created_at?: string
           display_name?: string | null
           email: string
           id: string
+          personal_context?: string | null
           updated_at?: string
           username?: string | null
         }
         Update: {
+          company_data?: Json | null
+          company_url?: string | null
           created_at?: string
           display_name?: string | null
           email?: string
           id?: string
+          personal_context?: string | null
           updated_at?: string
           username?: string | null
         }
