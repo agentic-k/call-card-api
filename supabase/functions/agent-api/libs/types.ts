@@ -23,9 +23,10 @@ export interface MeetingTemplate {
 }
 
 export interface AITemplateRequest {
-    templateContext: string;
-    linkedinProfileData?: any;
-    linkedinCompanyData?: any;
+    clientCompanyData: string;
+    linkedinProfileData: string;
+    linkedinCompanyData?: string;
+    templateContext?: string;
 }
 
 export interface APIResponse {
