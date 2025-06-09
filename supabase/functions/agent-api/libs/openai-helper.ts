@@ -16,9 +16,8 @@ export interface QuestionInput {
 export interface AnalysisResponse {
   question_id: string;
   question: string;
-  question_asked: "Yes" | "No";
-  topic_discussed: "Yes" | "No";
-  answer_reference: string;
+  question_asked: boolean;
+  topic_discussed: boolean;
 }
 
 export interface TranscriptAnalysisRequest {
@@ -55,7 +54,7 @@ function createOpenAIClient(): OpenAI {
 export async function analyzeTranscriptQuestions(
   transcript: string, 
   questions: QuestionInput[]
-): Promise<string> {
+): Promise<TranscriptAnalysisResult> {
   if (!transcript || !Array.isArray(questions)) {
     throw new Error('Transcript and questions are required');
   }
@@ -76,16 +75,14 @@ export async function analyzeTranscriptQuestions(
   
   const systemPrompt = `You are an assistant that analyzes a sales‑call transcript for the sales rep. Identify and list "topics / questions" from a sales call transcript of a customer call and determine which of these "topics / questions" have been asked.\n`
     + `For each question object, determine:\n`
-    + `- question_asked: "Yes" or "No"\n`
-    + `- topic_discussed: "Yes" or "No"\n`
-    + `- answer_reference: exact timestamp(s) or transcript line(s), or empty string\n`
+    + `- question_asked: true or false (boolean)\n`
+    + `- topic_discussed: true or false (boolean)\n`
     + `\n`
     + `Output: a pure JSON array of objects, each with:\n`
     + `- "question_id" (string): matches the input question's id\n`
     + `- "question" (string): the question text\n`
-    + `- "question_asked" (string): "Yes" or "No"\n`
-    + `- "topic_discussed" (string): "Yes" or "No"\n`
-    + `- "answer_reference" (string): timestamp(s) or empty\n`
+    + `- "question_asked" (boolean): true or false\n`
+    + `- "topic_discussed" (boolean): true or false\n`
     + `Do not output anything else.\n`;
 
   const responseFormat = {
@@ -111,32 +108,19 @@ export async function analyzeTranscriptQuestions(
                   "description": "The text of the question/topic"
                 },
                 "question_asked": {
-                  "type": "string",
-                  "enum": [
-                    "Yes",
-                    "No"
-                  ],
+                  "type": "boolean",
                   "description": "Whether the question was asked"
                 },
                 "topic_discussed": {
-                  "type": "string",
-                  "enum": [
-                    "Yes",
-                    "No"
-                  ],
+                  "type": "boolean",
                   "description": "Whether the topic was at least discussed"
                 },
-                "answer_reference": {
-                  "type": "string",
-                  "description": "Exact timestamp(s) or transcript line(s) where the question was answered, or empty string"
-                }
               },
               "required": [
                 "question_id",
                 "question",
                 "question_asked",
                 "topic_discussed",
-                "answer_reference"
               ],
               "additionalProperties": false
             }
@@ -186,7 +170,13 @@ export async function analyzeTranscriptQuestions(
       throw new Error('OpenAI did not return a reply');
     }
 
-    return reply;
+    // Parse the JSON response and return the object
+    try {
+      return JSON.parse(reply) as TranscriptAnalysisResult;
+    } catch (parseError) {
+      console.error('[analyzeTranscriptQuestions] Error parsing OpenAI response:', parseError);
+      throw new Error('Failed to parse OpenAI analysis response');
+    }
   } catch (error) {
     console.error('[analyzeTranscriptQuestions] Error:', error);
     throw error;

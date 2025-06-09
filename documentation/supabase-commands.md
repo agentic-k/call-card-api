@@ -7,7 +7,7 @@ supabase functions deploy <function-name>
 supabase functions serve --all
 
 ## Run all function with specific env file
-supabase functions serve --env-file ./supabase/.env.local
+supabase functions serve --env-file ./supabase/.env.local --no-verify-jwt
 
 
 ## Create a new function
