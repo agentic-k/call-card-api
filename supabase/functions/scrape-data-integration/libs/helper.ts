@@ -12,54 +12,17 @@ export function transformLinkedInProfileData(rawData: any): LinkedInProfile | nu
     city: profileData.city || null,
     country_code: profileData.country_code || null,
     about: profileData.about || null,
-    posts: Array.isArray(profileData.posts) ? profileData.posts.map((post: any) => ({
-      title: post.title || null,
-      attribution: post.attribution || null,
-      img: post.img || null,
-      link: post.link || null,
-      interaction: post.interaction || null,
-      id: post.id || null
-    })) : [],
+    posts: [],
     current_company: profileData.current_company ? {
       link: profileData.current_company.link || null,
       name: profileData.current_company.name || null,
       company_id: profileData.current_company.company_id || null
     } : null,
-    experience: profileData.experience || null,
+    experience: null,
     url: profileData.url || null,
     educations_details: profileData.educations_details || null,
-    education: Array.isArray(profileData.education) ? profileData.education.map((edu: any) => ({
-      title: edu.title || null,
-      url: edu.url || null,
-      start_year: edu.start_year || null,
-      end_year: edu.end_year || null,
-      description: edu.description || null,
-      description_html: edu.description_html || null,
-      institute_logo_url: edu.institute_logo_url || null
-    })) : [],
-    volunteer_experience: Array.isArray(profileData.volunteer_experience) ? profileData.volunteer_experience.map((exp: any) => ({
-      cause: exp.cause || null,
-      duration: exp.duration || null,
-      duration_short: exp.duration_short || null,
-      end_date: exp.end_date || null,
-      start_date: exp.start_date || null,
-      subtitle: exp.subtitle || null,
-      title: exp.title || null
-    })) : [],
-    honors_and_awards: Array.isArray(profileData.honors_and_awards) ? profileData.honors_and_awards.map((award: any) => ({
-      title: award.title || null,
-      publication: award.publication || null,
-      date: award.date || null,
-      description: award.description || null
-    })) : [],
+    volunteer_experience: [],
     location: profileData.location || null,
-    activity: Array.isArray(profileData.activity) ? profileData.activity.map((act: any) => ({
-      interaction: act.interaction || null,
-      link: act.link || null,
-      title: act.title || null,
-      img: act.img || null,
-      id: act.id || null
-    })) : [],
     current_company_company_id: profileData.current_company_company_id || null,
     current_company_name: profileData.current_company_name || null
   };

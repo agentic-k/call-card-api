@@ -10,11 +10,8 @@ export interface LinkedInProfile {
   experience: any;
   url: string | null;
   educations_details: any;
-  education: Education[];
   volunteer_experience: VolunteerExperience[];
-  honors_and_awards: Award[];
   location: string | null;
-  activity: Activity[];
   current_company_company_id: string | null;
   current_company_name: string | null;
 }
