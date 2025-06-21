@@ -23,10 +23,10 @@ export interface MeetingTemplate {
 }
 
 export interface AITemplateRequest {
-    clientCompanyData: string;
-    linkedinProfileData: string;
-    linkedinCompanyData?: string;
-    templateContext?: string;
+    clientCompanyUrl?: string;
+    prospectLinkedinUrl?: string;
+    prospectCompanyUrl?: string;
+    callCardContext?: string;
 }
 
 export interface APIResponse {

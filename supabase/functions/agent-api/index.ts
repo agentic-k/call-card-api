@@ -39,11 +39,27 @@ app.post('/agent-api/create-call-pack', async (c: Context) => {
   }
 
   const payload = await c.req.json() as AITemplateRequest
-  // console.debug('payload', payload)
+  
+  if (!payload.prospectLinkedinUrl || !payload.prospectCompanyUrl || !payload.clientCompanyUrl) {
+    return c.json({ error: 'Missing required fields: prospectLinkedinUrl, prospectCompanyUrl, and clientCompanyUrl' }, 400);
+  }
+
+  const agentPayload = {
+    "template_context": payload.callCardContext,
+    "linkedin_profile_url": payload.prospectLinkedinUrl,
+    "prospect_company_url": payload.prospectCompanyUrl,
+    "client_company_url": payload.clientCompanyUrl,
+  };
 
   try {
     const threadId = await createThread()
-    const assistantRes = await runAssistant(threadId, payload)
+    const assistantRes = await runAssistant(threadId, agentPayload)
+
+    if (!assistantRes || !assistantRes.messages || assistantRes.messages.length === 0) {
+      console.error('Invalid or empty response from assistant:', assistantRes);
+      throw new Error('Failed to get a valid response from the AI agent.');
+    }
+
     const lastMsg = assistantRes.messages.slice(-1)[0]
     const apiResp = JSON.parse(lastMsg.content)
     const meeting = processApiResponse(apiResp)

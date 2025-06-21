@@ -80,19 +80,14 @@ export async function createThread(): Promise<string> {
   }
 }
 
-// TODO: make input to always be string and not unknown
-export function runAssistant(threadId: string, input: string | unknown) {
+export function runAssistant(threadId: string, input: Record<string, unknown>) {
   return lsFetch(
     `/threads/${threadId}/runs/wait`,
     {
       method: 'POST',
       body: JSON.stringify({
         assistant_id: LANGSMITH_CALL_TEMPLATE_CREATE_TEMPLATE_ASSISTANT_ID,
-        input: {
-          messages: [
-            { role: 'human', content: JSON.stringify(input) }
-          ]
-        }
+        input: input
       })
     }
   );
