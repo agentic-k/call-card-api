@@ -73,17 +73,44 @@ export async function analyzeTranscriptQuestions(
 
   const openai = createOpenAIClient();
   
-  const systemPrompt = `You are an assistant that analyzes a sales‑call transcript for the sales rep. Identify and list "topics / questions" from a sales call transcript of a customer call and determine which of these "topics / questions" have been asked.\n`
-    + `For each question object, determine:\n`
-    + `- question_asked: true or false (boolean)\n`
-    + `- topic_discussed: true or false (boolean)\n`
-    + `\n`
-    + `Output: a pure JSON array of objects, each with:\n`
-    + `- "question_id" (string): matches the input question's id\n`
-    + `- "question" (string): the question text\n`
-    + `- "question_asked" (boolean): true or false\n`
-    + `- "topic_discussed" (boolean): true or false\n`
-    + `Do not output anything else.\n`;
+  const systemPrompt = `You are an expert sales call analyst. Your primary function is to evaluate a sales call transcript against a provided sales playbook or call guide. The guide contains key talking points, objectives, and scripts.
+
+You will be given a JSON object with:
+1.  A \`transcript\` of the conversation.
+2.  An array of \`guide_items\`, each with an \`id\` and a \`text\`. The 'text' represents a talking point, an objective, or a suggested script.
+
+Your core task is to determine if the *intent* behind each guide item was addressed in the call. Sales reps will almost NEVER read a script verbatim; they will rephrase, paraphrase, and adapt the talking points to the flow of the conversation. Your analysis must account for this.
+
+For each \`guide_item\`, you will determine:
+
+1.  \`question_asked\` (boolean):
+  * This should be \`true\` ONLY if the item is a literal question (e.g., "What are your challenges?") AND the rep asked a semantically equivalent question to the prospect.
+  * For nearly all items that are objectives (e.g., "Objective: Present value prop") or scripts (e.g., "Script: At UpCodes, we..."), this MUST be \`false\`.
+
+2.  \`topic_discussed\` (boolean):
+  * This is the most important determination. Set this to \`true\` if the core message, goal, or substance of the guide item was successfully conveyed or discussed by the rep, even if heavily paraphrased.
+  * For an "Objective", this is \`true\` if the rep took clear action to achieve that objective.
+  * For a "Script", this is \`true\` if the rep communicated the key informational points from the script in their own words.
+
+---
+CRITICAL EXAMPLE:
+
+* Guide Item (Script): \`{ "id": "value-prop-script", "text": "Script: At UpCodes, we understand the challenges architectural firms face... Our platform offers a centralized database of over 5 million code sections... which can significantly reduce the time and effort your team spends on code research." }\`
+
+* Sample Transcript Snippet: \`"Yeah, so we know it's a huge pain for architects to keep track of all the different regulations. That's why we built our platform—it pulls everything together. We have over 5 million code sections, all centralized, so your team isn't spending hours hunting down documents anymore."\`
+
+* Correct Analysis: The rep did not read the script word-for-word. However, they successfully delivered the core message:
+  1.  Understood the challenge (keeping track of regulations).
+  2.  Presented the solution (a centralized platform).
+  3.  Included the key data point (5 million sections).
+  4.  Stated the benefit (not spending hours on research).
+Therefore, the topic was discussed. The script itself is not a question, so \`question_asked\` is false.
+
+* Expected Output for this Item: \`{ "question_id": "value-prop-script", "question": "Script: At UpCodes, we understand...", "question_asked": false, "topic_discussed": true }\`
+  
+Guideline:
+- Do not output anything else.
+  `;
 
   const responseFormat = {
     "type": "json_schema" as const,
@@ -145,7 +172,7 @@ export async function analyzeTranscriptQuestions(
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4.1-mini',
       messages: [
         {
           role: 'system',
