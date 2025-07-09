@@ -19,8 +19,8 @@ app.post('/store-google-refresh-token', async (c: Context) => {
     }
 
     const { refreshToken } = await c.req.json()
-    if (!refreshToken) {
-      return c.json({ error: 'refreshToken is required' }, 400)
+    if (!refreshToken || typeof refreshToken !== 'string' || refreshToken.trim() === '') {
+      return c.json({ error: 'A valid refreshToken is required' }, 400)
     }
 
     const supabase = getSupabaseClient(c)
