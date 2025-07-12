@@ -34,6 +34,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      calendar_events: {
+        Row: {
+          calendar_id: string
+          created_at: string
+          description: string | null
+          end_time: string | null
+          etag: string | null
+          html_link: string | null
+          id: string
+          last_modified: string | null
+          raw_event_data: Json | null
+          start_time: string | null
+          status: string | null
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calendar_id: string
+          created_at?: string
+          description?: string | null
+          end_time?: string | null
+          etag?: string | null
+          html_link?: string | null
+          id: string
+          last_modified?: string | null
+          raw_event_data?: Json | null
+          start_time?: string | null
+          status?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calendar_id?: string
+          created_at?: string
+          description?: string | null
+          end_time?: string | null
+          etag?: string | null
+          html_link?: string | null
+          id?: string
+          last_modified?: string | null
+          raw_event_data?: Json | null
+          start_time?: string | null
+          status?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checkpoints: {
         Row: {
           checkpoint_id: string
@@ -273,6 +332,27 @@ export type Database = {
           },
         ]
       }
+      user_google_tokens: {
+        Row: {
+          created_at: string
+          refresh_token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          refresh_token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          refresh_token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_teams: {
         Row: {
           joined_at: string
@@ -302,6 +382,44 @@ export type Database = {
           },
           {
             foreignKeyName: "user_teams_user_id_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      watch_channels: {
+        Row: {
+          channel_id: string
+          created_at: string
+          expiration_timestamp: string
+          last_sync_token: string | null
+          resource_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          expiration_timestamp: string
+          last_sync_token?: string | null
+          resource_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          expiration_timestamp?: string
+          last_sync_token?: string | null
+          resource_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watch_channels_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
