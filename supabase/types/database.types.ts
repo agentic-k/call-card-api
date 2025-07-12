@@ -334,24 +334,38 @@ export type Database = {
       }
       user_google_tokens: {
         Row: {
+          access_token_expires_at: string | null
           created_at: string
-          refresh_token: string
+          google_access_token: string | null
+          google_refresh_token: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          access_token_expires_at?: string | null
           created_at?: string
-          refresh_token: string
+          google_access_token?: string | null
+          google_refresh_token: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          access_token_expires_at?: string | null
           created_at?: string
-          refresh_token?: string
+          google_access_token?: string | null
+          google_refresh_token?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_google_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_teams: {
         Row: {
