@@ -1,7 +1,7 @@
 import { Hono } from 'jsr:@hono/hono'
 import type { Context } from 'jsr:@hono/hono'
-import { createCorsMiddleware } from '../_shared/cors.ts'
-import { getUserFromContext } from '../_shared/supabase.ts'
+import { createCorsMiddleware } from '../_libs/cors.ts'
+import { getUserFromContext } from '../_libs/supabase.ts'
 
 const app = new Hono()
 

@@ -387,3 +387,25 @@ entrypoint = "./functions/store-google-refresh-token/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/store-google-refresh-token/*.html" ]
+
+[functions.google-calendar-webhook]
+enabled = true
+verify_jwt = true
+import_map = "./functions/google-calendar-webhook/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/google-calendar-webhook/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/google-calendar-webhook/*.html" ]
+
+[functions.google-calendar-channel-renewer]
+enabled = true
+verify_jwt = true
+import_map = "./functions/google-calendar-channel-renewer/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/google-calendar-channel-renewer/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/google-calendar-channel-renewer/*.html" ]

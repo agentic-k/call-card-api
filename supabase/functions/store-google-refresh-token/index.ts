@@ -3,8 +3,8 @@ import { cors } from 'jsr:@hono/hono/cors'
 import type { Context } from 'jsr:@hono/hono'
 
 // IMPORT Shared 
-import { getSupabaseClient, getUserFromContext } from '../_shared/supabase.ts'
-import { corsHeaders } from '../_shared/cors.ts'
+import { getSupabaseUserClient, getUserFromContext } from '../_libs/supabase.ts'
+import { corsHeaders } from '../_libs/cors.ts'
 
 const app = new Hono()
 
@@ -23,7 +23,7 @@ app.post('/store-google-refresh-token', async (c: Context) => {
       return c.json({ error: 'A valid refreshToken is required' }, 400)
     }
 
-    const supabase = getSupabaseClient(c)
+    const supabase = getSupabaseUserClient(c)
 
     const { data, error } = await supabase
       .from('user_google_tokens')

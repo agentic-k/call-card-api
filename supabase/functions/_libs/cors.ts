@@ -1,4 +1,4 @@
-// _shared/cors.ts
+// _libs/cors.ts
 export const corsHeaders = {
     origin: '*',
     allowHeaders: ['authorization','x-client-info','apikey','content-type'],

@@ -3,8 +3,8 @@ import { cors } from 'jsr:@hono/hono/cors'
 import type { Context } from 'jsr:@hono/hono'
 
 // IMPORT Shared 
-import { getSupabaseClient, getUserFromContext } from '../_shared/supabase.ts'
-import { corsHeaders } from '../_shared/cors.ts'
+import { getSupabaseUserClient, getUserFromContext } from '../_libs/supabase.ts'
+import { corsHeaders } from '../_libs/cors.ts'
 
 const app = new Hono()
 
@@ -12,7 +12,7 @@ const app = new Hono()
 app.use('/templates/*', cors(corsHeaders))
 
 app.get('/templates', async (c: Context) => {
-  const supabase = getSupabaseClient(c)
+  const supabase = getSupabaseUserClient(c)
   const user = await getUserFromContext(c)
   if (!user) return c.json({ error: 'User not found' }, 404)
   
@@ -28,7 +28,7 @@ app.get('/templates', async (c: Context) => {
 // todo: add middleware to check if user is authenticated and add user_id to payload
 app.get('/templates/:id', async (c: Context) => {
   const id = c.req.param('id')
-  const supabase = getSupabaseClient(c)
+  const supabase = getSupabaseUserClient(c)
   
   // Get User from Context
   const user = await getUserFromContext(c)
@@ -48,7 +48,7 @@ app.get('/templates/:id', async (c: Context) => {
 // todo: add middleware to check if user is authenticated and add user_id to payload
 app.post('/templates', async (c: Context) => {
   const payload = await c.req.json()
-  const supabase = getSupabaseClient(c)
+  const supabase = getSupabaseUserClient(c)
 
   // Get User from Context
   const user = await getUserFromContext(c)
@@ -71,7 +71,7 @@ app.post('/templates', async (c: Context) => {
 app.put('/templates/:id', async (c: Context) => {
   const id = c.req.param('id')
   const payload = await c.req.json()
-  const supabase = getSupabaseClient(c)
+  const supabase = getSupabaseUserClient(c)
   
   // Get User from Context
   const user = await getUserFromContext(c)
@@ -102,7 +102,7 @@ app.put('/templates/:id', async (c: Context) => {
 
 app.delete('/templates/:id', async (c: Context) => {
   const id = c.req.param('id')
-  const supabase = getSupabaseClient(c)
+  const supabase = getSupabaseUserClient(c)
   
   // Get User from Context
   const user = await getUserFromContext(c)

@@ -1,10 +1,10 @@
 import { Hono } from 'jsr:@hono/hono'
 import { cors } from 'jsr:@hono/hono/cors'
 import type { Context } from 'jsr:@hono/hono'
-import { getSupabaseClient, getUserFromContext } from '../_shared/supabase.ts'
+import { getSupabaseUserClient, getUserFromContext } from '../_libs/supabase.ts'
 
 // IMPORT Shared 
-import { corsHeaders } from '../_shared/cors.ts'
+import { corsHeaders } from '../_libs/cors.ts'
 
 const app = new Hono()
 
@@ -12,7 +12,7 @@ const app = new Hono()
 app.use('/profiles/*', cors(corsHeaders))
 
 app.get('/profiles', async (c: Context) => {
-  const supabase = getSupabaseClient(c)
+  const supabase = getSupabaseUserClient(c)
   const user = await getUserFromContext(c)
   if (!user) return c.json({ error: 'User not found' }, 404)
 
@@ -27,7 +27,7 @@ app.get('/profiles', async (c: Context) => {
 
 app.post('/profiles', async (c: Context) => {
   const payload = await c.req.json()
-  const supabase = getSupabaseClient(c)
+  const supabase = getSupabaseUserClient(c)
   const user = await getUserFromContext(c)
   if (!user) return c.json({ error: 'User not found' }, 404)
     
@@ -48,7 +48,7 @@ app.post('/profiles', async (c: Context) => {
 
 app.put('/profiles', async (c: Context) => {
   const payload = await c.req.json()
-  const supabase = getSupabaseClient(c)
+  const supabase = getSupabaseUserClient(c)
   const user = await getUserFromContext(c)
   if (!user) return c.json({ error: 'User not found' }, 404)
 
