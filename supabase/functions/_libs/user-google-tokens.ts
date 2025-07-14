@@ -1,5 +1,6 @@
 import { type SupabaseClient } from 'npm:@supabase/supabase-js@2.49.4'
 import { type Database } from '../../types/database.types.ts'
+import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from './config/google-config.ts'
 
 /**
  * Represents the structure of a record in the 'user_google_tokens' table.
@@ -64,8 +65,8 @@ export async function refreshAndSaveGoogleToken(
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        client_id: Deno.env.get('SUPABASE_AUTH_GOOGLE_CLIENT_ID')!,
-        client_secret: Deno.env.get('SUPABASE_AUTH_GOOGLE_CLIENT_SECRET')!,
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
         refresh_token: refreshToken,
         grant_type: 'refresh_token',
       }),

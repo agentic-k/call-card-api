@@ -12,7 +12,7 @@ import { getValidAccessToken } from '../_libs/user-google-tokens.ts'
 interface WatchChannel {
   user_id: string
   last_sync_token: string | null
-  calendar_id: string
+  resource_id: string
 }
 
 /**
@@ -117,7 +117,7 @@ async function syncCalendarEvents(
       const { error: updateError } = await supabaseClient
         .from('watch_channels')
         .update({ last_sync_token: nextSyncToken })
-        .eq('id', channelId)
+        .eq('channel_id', channelId)
 
       if (updateError) {
         console.error('Error updating nextSyncToken:', updateError)
@@ -155,8 +155,8 @@ Deno.serve(async (req) => {
     // --- Retrieve Watch Channel Information ---
     const { data: channel, error: channelError } = await supabaseClient
       .from('watch_channels')
-      .select<string, WatchChannel>('user_id, last_sync_token, calendar_id')
-      .eq('id', channelId)
+      .select<string, WatchChannel>('user_id, last_sync_token, resource_id')
+      .eq('channel_id', channelId)
       .single()
 
     if (channelError || !channel) {
@@ -164,14 +164,14 @@ Deno.serve(async (req) => {
       return new Response('Unauthorized: Watch channel not found.', { status: 401 })
     }
 
-    const { user_id, last_sync_token, calendar_id } = channel
+    const { user_id, last_sync_token, resource_id: calendar_id } = channel
 
     // --- Handle 'not_exists' State ---
     // If the resource (calendar) is no longer accessible, clean up related data.
     if (resourceState === 'not_exists') {
       console.log(`Resource ${calendar_id} no longer exists. Cleaning up channel ${channelId}.`)
       await supabaseClient.from('calendar_events').delete().eq('calendar_id', calendar_id)
-      await supabaseClient.from('watch_channels').delete().eq('id', channelId)
+      await supabaseClient.from('watch_channels').delete().eq('channel_id', channelId)
       return new Response('OK: Resource removed.', { status: 200 })
     }
 
