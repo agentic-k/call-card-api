@@ -59,6 +59,7 @@ export async function refreshGoogleToken(refreshToken: string): Promise<GoogleOA
  * @param calendarId - The ID of the calendar to watch.
  * @param channelId - The ID of the channel to renew.
  * @param webhookUrl - The notification URL where Google will send updates.
+ * @param token - An optional client-specific token for validation.
  * @returns A promise that resolves to the renewed channel's metadata.
  * @throws An error if the channel renewal fails.
  */
@@ -66,19 +67,26 @@ export async function renewWatchChannel(
   accessToken: string,
   calendarId: string,
   channelId: string,
-  webhookUrl: string
+  webhookUrl: string,
+  token?: string
 ): Promise<GoogleWatchResponse> {
+  const requestBody: { id: string; type: string; address: string; token?: string } = {
+    id: channelId,
+    type: 'web_hook',
+    address: webhookUrl,
+  };
+
+  if (token) {
+    requestBody.token = token;
+  }
+
   const watchResponse = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/watch`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      id: channelId,
-      type: 'web_hook',
-      address: webhookUrl,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!watchResponse.ok) {
