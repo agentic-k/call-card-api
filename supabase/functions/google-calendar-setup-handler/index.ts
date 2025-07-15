@@ -2,12 +2,8 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { getAndValidateEnv } from '../_libs/config/env.ts';
-// GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET are NOT directly used in this function anymore
-// as it receives already-exchanged tokens.
-// However, they might still be loaded by env.ts or google-config.ts for other functions.
-// import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from '../_libs/config/google-config.ts';
 import { getSupabaseServiceRoleClient } from '../_libs/supabase.ts';
-import type { Database } from '../types/database.types.ts';
+import type { Database } from '../_libs/types/database.types.ts';
 import { renewWatchChannel } from '../_libs/google.ts'; // This function will use the access_token received
 
 // --- Type Definitions ---

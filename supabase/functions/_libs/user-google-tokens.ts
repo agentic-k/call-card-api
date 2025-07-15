@@ -1,5 +1,5 @@
 import { type SupabaseClient } from 'npm:@supabase/supabase-js@2.49.4'
-import { type Database } from '../../types/database.types.ts'
+import { type Database } from './types/database.types.ts'
 import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from './config/google-config.ts'
 
 /**

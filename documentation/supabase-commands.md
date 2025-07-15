@@ -3,7 +3,7 @@
   `supabase db push --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres`
 
 2. Generate types 
-`supabase gen types typescript --local > supabase/types/database.types.ts`
+`supabase gen types typescript --local > '_libs/types/database.types.ts`
 
 
 # ********************** API *********************** #

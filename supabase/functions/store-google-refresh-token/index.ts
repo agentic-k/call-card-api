@@ -29,7 +29,7 @@ app.post('/store-google-refresh-token', async (c: Context) => {
       .from('user_google_tokens')
       .upsert({
         user_id: user.id,
-        refresh_token: refreshToken
+        google_refresh_token: refreshToken
       })
       .select()
       .single()

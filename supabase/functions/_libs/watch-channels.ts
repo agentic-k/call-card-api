@@ -1,6 +1,5 @@
-import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { type SupabaseClient } from 'npm:@supabase/supabase-js@2.49.4'
-import { type Database } from '../../types/database.types.ts'
+import { type Database } from './types/database.types.ts'
 
 type WatchChannel = Database['public']['Tables']['watch_channels']['Row'];
 

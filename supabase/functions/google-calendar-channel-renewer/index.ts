@@ -1,8 +1,8 @@
-import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { getSupabaseServiceRoleClient } from '../_libs/supabase.ts'
 import * as watchChannels from '../_libs/watch-channels.ts'
+import * as userTokens from '../_libs/user-google-tokens.ts'
 import * as google from '../_libs/google.ts'
-import { Database } from '../../types/database.types.ts'
+import { Database } from '../_libs/types/database.types.ts'
 
 /**
  * This Deno edge function is triggered by a Supabase cron job to proactively
@@ -45,14 +45,11 @@ Deno.serve(async (_req) => {
       try {
         console.log(`Renewing channel ${channel.channel_id} for user ${channel.user_id}`)
         
-        // Retrieve the user's refresh token and use it to get a new access token.
-        const refreshToken = await watchChannels.getRefreshTokenForUser(supabaseAdmin, channel.user_id)
-        const newTokens = await google.refreshGoogleToken(refreshToken)
-        
-        // Update the user's tokens in the database.
-        const newAccessToken = newTokens.access_token
-        const newExpiresAt = new Date(Date.now() + newTokens.expires_in * 1000).toISOString()
-        await watchChannels.updateUserTokens(supabaseAdmin, channel.user_id, newAccessToken, newExpiresAt)
+        // Get a valid access token for the user (refreshes automatically if needed).
+        const newAccessToken = await userTokens.getValidAccessToken(supabaseAdmin, channel.user_id)
+        if (!newAccessToken) {
+          throw new Error(`Failed to get valid access token for user ${channel.user_id}`)
+        }
         
         // Use the new access token to renew the watch channel with Google's API.
         const renewalData = await google.renewWatchChannel(newAccessToken, channel.resource_id, channel.channel_id, webhookUrl)
