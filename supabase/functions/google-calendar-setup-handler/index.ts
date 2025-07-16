@@ -4,7 +4,8 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { getAndValidateEnv } from '../_libs/config/env.ts';
 import { getSupabaseServiceRoleClient } from '../_libs/supabase.ts';
 import type { Database } from '../_libs/types/database.types.ts';
-import { renewWatchChannel } from '../_libs/google.ts'; // This function will use the access_token received
+import { renewWatchChannel } from '../_libs/google.ts';
+import { getValidAccessToken } from '../_libs/user-google-tokens.ts'; // Import the helper
 
 // --- Type Definitions ---
 
@@ -15,13 +16,14 @@ import { renewWatchChannel } from '../_libs/google.ts'; // This function will us
 interface SetupRequestBody {
   userId: string;
   googleAccessToken: string;
-  googleRefreshToken: string;
+  googleRefreshToken?: string;
   accessTokenExpiresAt: string; // ISO string
 }
 
 // --- Environment Variable and Supabase Client Initialization ---
-const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'WEBHOOK_HANDLER_URL'] as const;
+const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'WEBHOOK_HANDLER_BASE_URL'] as const;
 const env = getAndValidateEnv(requiredEnvVars);
+console.log('env', env);
 
 const supabaseClient = getSupabaseServiceRoleClient<Database>();
 
@@ -38,7 +40,7 @@ serve(async (req) => {
   let requestBody: SetupRequestBody;
   try {
     requestBody = await req.json();
-    if (!requestBody.userId || !requestBody.googleAccessToken || !requestBody.googleRefreshToken || !requestBody.accessTokenExpiresAt) {
+    if (!requestBody.userId || !requestBody.googleAccessToken || !requestBody.accessTokenExpiresAt) {
       throw new Error('Missing required fields in request body.');
     }
   } catch (error) {
@@ -54,40 +56,41 @@ serve(async (req) => {
 
   try {
     // --- 1. Store Tokens in Supabase ---
-    // These tokens are already exchanged by Supabase Auth.
-    // This function's role is to store them securely for backend use (webhooks, renewer).
-    console.log(`Storing Google tokens for user: ${userId}`);
-    const { error: upsertTokenError } = await supabaseClient
+    // Always update the access token, which is refreshed on each login.
+    console.debug(`Updating Google access token for user: ${userId}`);
+    const { error: updateError } = await supabaseClient
       .from('user_google_tokens')
-      .upsert({
-        user_id: userId,
-        google_refresh_token: googleRefreshToken,
+      .update({
         google_access_token: googleAccessToken,
         access_token_expires_at: accessTokenExpiresAt,
-      }, { onConflict: 'user_id' }); // Conflict on user_id to update existing tokens
+        ...(googleRefreshToken && { google_refresh_token: googleRefreshToken }),
+      })
+      .eq('user_id', userId);
 
-    if (upsertTokenError) {
-      console.error(`Error storing Google tokens for user ${userId}:`, upsertTokenError);
-      throw new Error(`Failed to store Google tokens: ${upsertTokenError.message}`);
+    if (updateError) {
+      console.error(`Error updating Google tokens for user ${userId}:`, updateError);
+      throw new Error(`Failed to update Google tokens: ${updateError.message}`);
     }
 
     // --- 2. Initiate Google Calendar Watch Request ---
-    // Use the googleAccessToken received from the client to make the watch request.
+    // Use the access token from the request directly since it's fresh from login
     console.log(`Initiating Google Calendar watch for user: ${userId}`);
-    const channelId = crypto.randomUUID(); // Generate a unique ID for the channel
-    const channelToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15); // Simple random token for validation
+    const channelId = crypto.randomUUID();
+    const channelToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
-    // Call the shared utility function to make the watch request
+    // Dynamically construct the webhook URL from the Supabase project URL.
+    const webhookUrl = `${env.WEBHOOK_HANDLER_BASE_URL}/functions/v1/google-calendar-webhook`;
+
     const watchData = await renewWatchChannel(
-      googleAccessToken, // Use the access token received from the client
-      'primary', // Assuming primary calendar for now, can be dynamic
+      googleAccessToken, // Use the token from the request
+      'primary',
       channelId,
-      env.WEBHOOK_HANDLER_URL,
+      webhookUrl, // Use the dynamically constructed URL
       channelToken
     );
 
-    const resourceId = watchData.resourceId || 'primary'; // Fallback to 'primary' if not explicitly returned
-    const expirationTimestamp = new Date(parseInt(watchData.expiration, 10)).toISOString(); // Convert from milliseconds
+    const resourceId = watchData.resourceId || 'primary';
+    const expirationTimestamp = new Date(parseInt(watchData.expiration, 10)).toISOString();
 
     // --- 3. Record Watch Channel in Supabase ---
     console.log(`Recording watch channel for user: ${userId}, channel: ${channelId}`);
@@ -98,7 +101,7 @@ serve(async (req) => {
         resource_id: resourceId,
         user_id: userId,
         expiration_timestamp: expirationTimestamp,
-        last_sync_token: null, // Initial sync token is null, webhook will set it
+        last_sync_token: null,
       }, { onConflict: 'channel_id' });
 
     if (upsertChannelError) {
