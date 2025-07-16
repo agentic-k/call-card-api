@@ -35,6 +35,13 @@ interface GoogleCalendarEvent {
   htmlLink?: string
   updated?: string
   etag?: string
+  attendees?: {
+    email: string
+    displayName?: string
+    organizer?: boolean
+    self?: boolean
+    responseStatus?: string
+  }[]
   // This allows for other properties we don't explicitly define
   [key: string]: any
 }
@@ -109,6 +116,17 @@ async function syncCalendarEvents(
       if (event.status === 'cancelled') {
         eventIdsToDelete.push(event.id)
       } else {
+        // Filter out attendees without an email (e.g., resources like meeting rooms)
+        // and map to a cleaner object for storage.
+        const attendees =
+          event.attendees
+            ?.filter((a) => a.email)
+            .map((a) => ({
+              email: a.email,
+              displayName: a.displayName,
+              responseStatus: a.responseStatus,
+            })) || []
+
         // Selectively map Google event fields to our database schema to avoid "column not found" errors.
         eventsToUpsert.push({
           id: event.id,
@@ -122,6 +140,7 @@ async function syncCalendarEvents(
           html_link: event.htmlLink,
           last_modified: event.updated,
           etag: event.etag,
+          attendees: attendees,
           // Store the entire raw event from Google in a JSONB column for future use.
           raw_event_data: event,
         } as any) // Use 'as any' to bypass strict type checking if your DB types are slightly different
