@@ -22,7 +22,20 @@ interface WatchChannel {
 interface GoogleCalendarEvent {
   id: string
   status: 'confirmed' | 'tentative' | 'cancelled'
-  // Include other event properties you intend to store, e.g., summary, start, end, etc.
+  summary?: string
+  description?: string
+  start?: {
+    dateTime?: string
+    date?: string
+  }
+  end?: {
+    dateTime?: string
+    date?: string
+  }
+  htmlLink?: string
+  updated?: string
+  etag?: string
+  // This allows for other properties we don't explicitly define
   [key: string]: any
 }
 
@@ -61,8 +74,15 @@ async function syncCalendarEvents(
     const params = new URLSearchParams()
     if (syncToken) {
       params.append('syncToken', syncToken)
+    } else {
+      // This is a full sync. Only fetch events from today onwards to avoid syncing the entire history.
+      const timeMin = new Date()
+      timeMin.setHours(0, 0, 0, 0) // Set to the beginning of today.
+      params.append('timeMin', timeMin.toISOString())
     }
-    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+      calendarId
+    )}/events?${params}`
 
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -89,8 +109,22 @@ async function syncCalendarEvents(
       if (event.status === 'cancelled') {
         eventIdsToDelete.push(event.id)
       } else {
-        // Prepare event data for upsert, adding user_id and calendar_id.
-        eventsToUpsert.push({ ...event, user_id: userId, calendar_id: calendarId })
+        // Selectively map Google event fields to our database schema to avoid "column not found" errors.
+        eventsToUpsert.push({
+          id: event.id,
+          user_id: userId,
+          calendar_id: calendarId,
+          title: event.summary,
+          description: event.description,
+          start_time: event.start?.dateTime || event.start?.date,
+          end_time: event.end?.dateTime || event.end?.date,
+          status: event.status,
+          html_link: event.htmlLink,
+          last_modified: event.updated,
+          etag: event.etag,
+          // Store the entire raw event from Google in a JSONB column for future use.
+          raw_event_data: event,
+        } as any) // Use 'as any' to bypass strict type checking if your DB types are slightly different
       }
     }
 
@@ -160,8 +194,11 @@ Deno.serve(async (req) => {
       .single()
 
     if (channelError || !channel) {
-      console.error(`Watch channel not found for ID ${channelId}:`, channelError)
-      return new Response('Unauthorized: Watch channel not found.', { status: 401 })
+      // This can happen if a notification arrives for a channel that has been deleted,
+      // or if multiple developers are pointing to the same webhook URL from different databases.
+      // We log it, but return a 200 OK to prevent Google from retrying.
+      console.warn(`Watch channel not found for ID ${channelId}. Acknowledging to prevent retries. Error:`, channelError);
+      return new Response('OK: Channel not found, but acknowledged.', { status: 200 });
     }
 
     const { user_id, last_sync_token, resource_id: calendar_id } = channel

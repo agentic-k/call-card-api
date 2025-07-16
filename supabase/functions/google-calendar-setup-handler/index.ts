@@ -21,9 +21,8 @@ interface SetupRequestBody {
 }
 
 // --- Environment Variable and Supabase Client Initialization ---
-const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'WEBHOOK_HANDLER_BASE_URL'] as const;
+const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'WEBHOOK_PUBLIC_URL'] as const;
 const env = getAndValidateEnv(requiredEnvVars);
-console.log('env', env);
 
 const supabaseClient = getSupabaseServiceRoleClient<Database>();
 
@@ -75,30 +74,34 @@ serve(async (req) => {
     // --- 2. Initiate Google Calendar Watch Request ---
     // Use the access token from the request directly since it's fresh from login
     console.log(`Initiating Google Calendar watch for user: ${userId}`);
+    const calendarIdentifier = 'primary';
     const channelId = crypto.randomUUID();
     const channelToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
-    // Dynamically construct the webhook URL from the Supabase project URL.
-    const webhookUrl = `${env.WEBHOOK_HANDLER_BASE_URL}/functions/v1/google-calendar-webhook`;
+    // Dynamically construct the webhook URL. Note the use of WEBHOOK_PUBLIC_URL.
+    const webhookUrl = `${env.WEBHOOK_PUBLIC_URL}/functions/v1/google-calendar-webhook`;
 
     const watchData = await renewWatchChannel(
       googleAccessToken, // Use the token from the request
-      'primary',
+      calendarIdentifier,
       channelId,
-      webhookUrl, // Use the dynamically constructed URL
+      webhookUrl,
       channelToken
     );
 
-    const resourceId = watchData.resourceId || 'primary';
+    // IMPORTANT: The resourceId from Google is an opaque value not suitable for subsequent API calls.
+    // We must store the calendar ID we used to create the watch ('primary')
+    // so that the webhook can use it to fetch events correctly.
+    const resourceIdToStore = calendarIdentifier;
     const expirationTimestamp = new Date(parseInt(watchData.expiration, 10)).toISOString();
 
     // --- 3. Record Watch Channel in Supabase ---
-    console.log(`Recording watch channel for user: ${userId}, channel: ${channelId}`);
+    console.log(`Recording watch channel for user: ${userId}, channel: ${channelId}, resource: ${resourceIdToStore}`);
     const { error: upsertChannelError } = await supabaseClient
       .from('watch_channels')
       .upsert({
         channel_id: channelId,
-        resource_id: resourceId,
+        resource_id: resourceIdToStore,
         user_id: userId,
         expiration_timestamp: expirationTimestamp,
         last_sync_token: null,
