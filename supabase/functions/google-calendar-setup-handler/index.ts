@@ -54,26 +54,33 @@ serve(async (req) => {
   const { userId, googleAccessToken, googleRefreshToken, accessTokenExpiresAt } = requestBody;
 
   try {
+    // A refresh token is essential for maintaining long-term access.
+    // If it's missing, we cannot proceed with setting up calendar sync.
+    if (!googleRefreshToken) {
+      throw new Error('Google refresh token is missing. Cannot set up calendar watch.');
+    }
+    
     // --- 1. Store Tokens in Supabase ---
-    // Always update the access token, which is refreshed on each login.
-    console.debug(`Updating Google access token for user: ${userId}`);
-    const { error: updateError } = await supabaseClient
+    // Use upsert to either create a new token record or update an existing one.
+    // This handles both first-time sign-ins and subsequent logins.
+    const { error: upsertError } = await supabaseClient
       .from('user_google_tokens')
-      .update({
+      .upsert({
+        user_id: userId,
         google_access_token: googleAccessToken,
+        google_refresh_token: googleRefreshToken, // Now guaranteed to be a string
         access_token_expires_at: accessTokenExpiresAt,
-        ...(googleRefreshToken && { google_refresh_token: googleRefreshToken }),
-      })
-      .eq('user_id', userId);
+      }, {
+        onConflict: 'user_id',
+      });
 
-    if (updateError) {
-      console.error(`Error updating Google tokens for user ${userId}:`, updateError);
-      throw new Error(`Failed to update Google tokens: ${updateError.message}`);
+    if (upsertError) {
+      console.error(`Error upserting Google tokens for user ${userId}:`, upsertError);
+      throw new Error(`Failed to upsert Google tokens: ${upsertError.message}`);
     }
 
     // --- 2. Initiate Google Calendar Watch Request ---
     // Use the access token from the request directly since it's fresh from login
-    console.log(`Initiating Google Calendar watch for user: ${userId}`);
     const calendarIdentifier = 'primary';
     const channelId = crypto.randomUUID();
     const channelToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -96,7 +103,6 @@ serve(async (req) => {
     const expirationTimestamp = new Date(parseInt(watchData.expiration, 10)).toISOString();
 
     // --- 3. Record Watch Channel in Supabase ---
-    console.log(`Recording watch channel for user: ${userId}, channel: ${channelId}, resource: ${resourceIdToStore}`);
     const { error: upsertChannelError } = await supabaseClient
       .from('watch_channels')
       .upsert({
@@ -105,14 +111,13 @@ serve(async (req) => {
         user_id: userId,
         expiration_timestamp: expirationTimestamp,
         last_sync_token: null,
-      }, { onConflict: 'channel_id' });
+      }, { onConflict: 'user_id,resource_id' });
 
     if (upsertChannelError) {
       console.error(`Error storing watch channel for user ${userId}:`, upsertChannelError);
       throw new Error(`Failed to store watch channel: ${upsertChannelError.message}`);
     }
 
-    console.log(`Google Calendar setup complete for user: ${userId}`);
     return new Response(JSON.stringify({ success: true, message: 'Google Calendar setup complete.' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
