@@ -1,65 +1,51 @@
--- migrations/20250719210500_drop_checkpoints_meetings_transcripts_and_policies.sql
+-- migrations/20250719210900_drop_all_tables_and_policies_v2.sql
 
--- UP MIGRATION: Drop tables and their policies
+-- UP MIGRATION: Drop tables and their policies - Adjusted Order
 
--- --- Drop 'checkpoints' table and its policies ---
--- 1. Disable RLS for 'checkpoints' table
+-- --- Drop deepest child tables first to respect foreign key constraints ---
+
+-- 1. Drop 'user_teams' table (references 'teams' and 'profiles')
+DROP TABLE IF EXISTS public.user_teams;
+
+-- 2. Drop policies and then 'checkpoints' table (references 'meetings')
 ALTER TABLE public.checkpoints DISABLE ROW LEVEL SECURITY;
-
--- 2. Drop all policies associated with 'checkpoints'
 DROP POLICY IF EXISTS "Allow read checkpoints of owned meetings" ON public.checkpoints;
 DROP POLICY IF EXISTS "Allow insert checkpoints into owned meetings" ON public.checkpoints;
 DROP POLICY IF EXISTS "Allow update checkpoints of owned meetings" ON public.checkpoints;
 DROP POLICY IF EXISTS "Allow delete checkpoints of owned meetings" ON public.checkpoints;
-
--- 3. Drop the 'checkpoints' table itself
--- IMPORTANT: Consider foreign key constraints.
--- If other tables have foreign keys referencing 'checkpoints',
--- this command will fail unless those foreign keys are dropped first,
--- or you use CASCADE. If you use CASCADE, be extremely careful.
 DROP TABLE IF EXISTS public.checkpoints;
--- OR (USE WITH EXTREME CAUTION IF YOU'RE SURE):
--- DROP TABLE IF EXISTS public.checkpoints CASCADE;
 
-
--- --- Drop 'transcripts' table and its policies ---
--- 1. Disable RLS for 'transcripts' table
+-- 3. Drop policies and then 'transcripts' table (references 'meetings')
 ALTER TABLE public.transcripts DISABLE ROW LEVEL SECURITY;
-
--- 2. Drop all policies associated with 'transcripts'
 DROP POLICY IF EXISTS "Allow read transcripts of owned meetings" ON public.transcripts;
 DROP POLICY IF EXISTS "Allow insert transcripts into owned meetings" ON public.transcripts;
 DROP POLICY IF EXISTS "Allow update transcripts of owned meetings" ON public.transcripts;
 DROP POLICY IF EXISTS "Allow delete transcripts of owned meetings" ON public.transcripts;
-
--- 3. Drop the 'transcripts' table itself
--- IMPORTANT: This table might be referenced by 'meetings' (if 'transcripts' has a meeting_id).
--- If 'transcripts' has a foreign key to 'meetings', ensure this table is dropped before 'meetings'
--- or use CASCADE carefully.
 DROP TABLE IF EXISTS public.transcripts;
--- OR (USE WITH EXTREME CAUTION IF YOU'RE SURE):
--- DROP TABLE IF EXISTS public.transcripts CASCADE;
 
 
--- --- Drop 'meetings' table and its policies ---
--- 1. Disable RLS for 'meetings' table
+-- --- Now drop tables that are parents to the ones above, but children to others ---
+
+-- 4. Drop policies and then 'meetings' table (references 'templates', 'teams', 'profiles')
+-- Its children ('checkpoints' and 'transcripts') are already dropped.
 ALTER TABLE public.meetings DISABLE ROW LEVEL SECURITY;
-
--- 2. Drop all policies associated with 'meetings'
 DROP POLICY IF EXISTS "Allow meeting owners to read" ON public.meetings;
 DROP POLICY IF EXISTS "Allow owners to insert meetings" ON public.meetings;
 DROP POLICY IF EXISTS "Allow owners to update meetings" ON public.meetings;
 DROP POLICY IF EXISTS "Allow owners to delete meetings" ON public.meetings;
-
--- 3. Drop the 'meetings' table itself
--- IMPORTANT: This table might be referenced by 'checkpoints' and 'transcripts'.
--- Since 'checkpoints' and 'transcripts' are dropped *before* 'meetings' in this migration,
--- any foreign keys from them to 'meetings' should no longer be an issue here.
--- Using CASCADE here is also an option, but again, use with extreme caution.
 DROP TABLE IF EXISTS public.meetings;
--- OR (USE WITH EXTREME CAUTION IF YOU'RE SURE):
--- DROP TABLE IF EXISTS public.meetings CASCADE;
 
 
-DROP TABLE IF EXISTS public.user_teams;
+-- 5. Drop policies and then 'templates' table (references 'teams', 'profiles')
+-- 'meetings' (which referenced 'templates') is now dropped.
+ALTER TABLE public.templates DISABLE ROW LEVEL SECURITY;
+-- Add DROP POLICY statements for 'templates' here if they exist.
+-- Example: DROP POLICY IF EXISTS "some_template_policy" ON public.templates;
+DROP TABLE IF EXISTS public.templates;
+
+
+-- --- Finally, drop 'teams' table (parent to 'user_teams', 'meetings', and 'templates') ---
+
+-- 6. Drop 'teams' table (all tables that referenced it are now dropped)
 DROP TABLE IF EXISTS public.teams;
+
