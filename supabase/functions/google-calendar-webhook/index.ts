@@ -1,19 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
 import { getValidAccessToken } from '../_libs/user-google-tokens.ts'
+import type { Tables, TablesInsert } from '../_libs/types/database.types.ts'
 
 // --- Type Definitions ---
 // These interfaces define the expected structure of data from your Supabase tables.
 // They help ensure type safety throughout the function.
 
 /**
- * Represents the structure of a record in the 'watch_channels' table.
- * This table stores information about active Google Calendar notification channels.
+ * Represents a subset of columns from the 'watch_channels' table.
+ * This type is derived from the master database types for consistency.
  */
-interface WatchChannel {
-  user_id: string
-  last_sync_token: string | null
-  resource_id: string
-}
+type WatchChannel = Pick<Tables<'watch_channels'>, 'user_id' | 'last_sync_token' | 'resource_id'>
 
 /**
  * Represents a simplified structure of a Google Calendar event object.
@@ -108,7 +105,7 @@ async function syncCalendarEvents(
     }
 
     const eventData = await response.json()
-    const eventsToUpsert: GoogleCalendarEvent[] = []
+    const eventsToUpsert: TablesInsert<'calendar_events'>[] = []
     const eventIdsToDelete: string[] = []
 
     // Process each event from the API response.
@@ -117,7 +114,7 @@ async function syncCalendarEvents(
         eventIdsToDelete.push(event.id)
       } else {
         // Filter out attendees without an email (e.g., resources like meeting rooms)
-        // and map to a cleaner object for storage.
+        // and map to a cleaner object for storage. This captures key details for identifying participants.
         const attendees =
           event.attendees
             ?.filter((a) => a.email)
@@ -125,6 +122,8 @@ async function syncCalendarEvents(
               email: a.email,
               displayName: a.displayName,
               responseStatus: a.responseStatus,
+              organizer: a.organizer ?? false,
+              self: a.self ?? false,
             })) || []
 
         // Selectively map Google event fields to our database schema to avoid "column not found" errors.
@@ -143,7 +142,7 @@ async function syncCalendarEvents(
           attendees: attendees,
           // Store the entire raw event from Google in a JSONB column for future use.
           raw_event_data: event,
-        } as any) // Use 'as any' to bypass strict type checking if your DB types are slightly different
+        })
       }
     }
 

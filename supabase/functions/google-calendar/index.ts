@@ -19,7 +19,6 @@ app.get('/google-calendar/calendar-events', async (c: Context) => {
       return c.json({ error: 'User not found or not authenticated' }, 401)
     }
 
-    console.debug('User authenticated successfully:', { userId: user.id, email: user.email })
 
     // Create a Supabase client that authenticates with the user's JWT
     const supabase = getSupabaseUserClient(c)
