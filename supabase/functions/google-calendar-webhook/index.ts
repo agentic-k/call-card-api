@@ -215,8 +215,13 @@ Deno.serve(async (req) => {
       // This can happen if a notification arrives for a channel that has been deleted,
       // or if multiple developers are pointing to the same webhook URL from different databases.
       // We log it, but return a 200 OK to prevent Google from retrying.
-      console.warn(`Watch channel not found for ID ${channelId}. Acknowledging to prevent retries. Error:`, channelError);
-      return new Response('OK: Channel not found, but acknowledged.', { status: 200 });
+      console.warn(
+        `Watch channel not found for ID ${channelId} (resource ID: ${resourceId}). Acknowledging to prevent retries. Error:`,
+        channelError
+      )
+      return new Response('OK: Channel not found, but acknowledged.', {
+        status: 200,
+      })
     }
 
     const { user_id, last_sync_token, resource_id: calendar_id } = channel
@@ -239,11 +244,18 @@ Deno.serve(async (req) => {
     }
 
     // --- Handle 'sync' and 'exists' States ---
-    if (resourceState === 'sync' || resourceState === 'exists') {
-      if (resourceState === 'sync') {
-        console.log(`Received initial 'sync' notification for channel ${channelId}. Starting full sync.`)
-      }
-      console.log(`Change detected for calendar ${calendar_id} (channel ${channelId}). Starting delta sync.`)
+    if (resourceState === 'sync') {
+      console.log(
+        `Received initial 'sync' notification for channel ${channelId}. Starting full sync.`
+      )
+      // For a 'sync' message, we must perform a full sync. Passing null for the
+      // syncToken ensures this. last_sync_token in the database should be null
+      // for a new channel anyway, but this makes the intent explicit.
+      await syncCalendarEvents(accessToken, calendar_id, null, channelId, user_id)
+    } else if (resourceState === 'exists') {
+      console.log(
+        `Change detected for calendar ${calendar_id} (channel ${channelId}). Starting delta sync.`
+      )
       await syncCalendarEvents(accessToken, calendar_id, last_sync_token, channelId, user_id)
     }
 
