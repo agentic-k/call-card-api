@@ -54,33 +54,70 @@ serve(async (req) => {
   const { userId, googleAccessToken, googleRefreshToken, accessTokenExpiresAt } = requestBody;
 
   try {
-    // A refresh token is essential for maintaining long-term access.
-    // If it's missing, we cannot proceed with setting up calendar sync.
-    if (!googleRefreshToken) {
-      throw new Error('Google refresh token is missing. Cannot set up calendar watch.');
-    }
-    
-    // --- 1. Store Tokens in Supabase ---
-    // Use upsert to either create a new token record or update an existing one.
-    // This handles both first-time sign-ins and subsequent logins.
-    const { error: upsertError } = await supabaseClient
-      .from('user_google_tokens')
-      .upsert({
-        user_id: userId,
-        google_access_token: googleAccessToken,
-        google_refresh_token: googleRefreshToken, // Now guaranteed to be a string
-        access_token_expires_at: accessTokenExpiresAt,
-      }, {
-        onConflict: 'user_id',
-      });
+    // --- 1. Store/Update Tokens in Supabase ---
 
-    if (upsertError) {
-      console.error(`Error upserting Google tokens for user ${userId}:`, upsertError);
-      throw new Error(`Failed to upsert Google tokens: ${upsertError.message}`);
+    // Build the payload for the update. The access token is always updated.
+    // The refresh token is only updated if a new one is explicitly provided.
+    const updatePayload: {
+      google_access_token: string;
+      access_token_expires_at: string;
+      google_refresh_token?: string;
+    } = {
+      google_access_token: googleAccessToken,
+      access_token_expires_at: accessTokenExpiresAt,
+    };
+
+    if (googleRefreshToken) {
+      updatePayload.google_refresh_token = googleRefreshToken;
+    }
+
+    // First, try to update the existing record. This is for users who are reconnecting.
+    const { data: updateData, error: updateError } = await supabaseClient
+      .from('user_google_tokens')
+      .update(updatePayload)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (updateError && updateError.code !== 'PGRST116') { // PGRST116 means no row found
+      console.error(`Error updating Google tokens for user ${userId}:`, updateError);
+      throw new Error(`Failed to update Google tokens: ${updateError.message}`);
+    }
+
+    // If no record was updated (a new user) and we have a refresh token, insert a new record.
+    if (!updateData && googleRefreshToken) {
+      const { error: insertError } = await supabaseClient
+        .from('user_google_tokens')
+        .insert({
+          user_id: userId,
+          google_access_token: googleAccessToken,
+          google_refresh_token: googleRefreshToken,
+          access_token_expires_at: accessTokenExpiresAt,
+        });
+
+      if (insertError) {
+        console.error(`Error inserting Google tokens for user ${userId}:`, insertError);
+        throw new Error(`Failed to insert Google tokens: ${insertError.message}`);
+      }
+    } else if (!updateData && !googleRefreshToken) {
+      // This case handles a new user who, for some reason, didn't provide a refresh token.
+      // We cannot proceed with calendar sync without it.
+      throw new Error('A refresh token is required for the initial setup, but none was provided.');
     }
 
     // --- 2. Initiate Google Calendar Watch Request ---
-    // Use the access token from the request directly since it's fresh from login
+    // A valid refresh token must exist in the database for the watch to be meaningful long-term.
+    // We check this by fetching the token record again after the upsert.
+    const { data: tokenData, error: tokenFetchError } = await supabaseClient
+      .from('user_google_tokens')
+      .select('google_refresh_token')
+      .eq('user_id', userId)
+      .single();
+    
+    if (tokenFetchError || !tokenData?.google_refresh_token) {
+        throw new Error('A valid Google refresh token is required to set up calendar sync, but none was found.');
+    }
+
     const calendarIdentifier = 'primary';
     const channelId = crypto.randomUUID();
     const channelToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);

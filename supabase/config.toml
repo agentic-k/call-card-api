@@ -409,3 +409,9 @@ entrypoint = "./functions/google-calendar-setup-handler/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/google-calendar-setup-handler/*.html" ]
+
+[functions.google-calendar-permission]
+enabled = true
+verify_jwt = true
+import_map = "./functions/google-calendar-permission/deno.json"
+entrypoint = "./functions/google-calendar-permission/index.ts"
