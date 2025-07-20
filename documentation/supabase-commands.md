@@ -5,6 +5,9 @@
 2. Generate types 
 `supabase gen types typescript --local > 'supabase/functions/_libs/types/database.types.ts'`
 
+3. [Danger] Reset DB
+`supabase db reset --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres`
+
 
 # ********************** API *********************** #
 

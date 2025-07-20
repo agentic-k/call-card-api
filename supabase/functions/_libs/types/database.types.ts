@@ -48,6 +48,7 @@ export type Database = {
           raw_event_data: Json | null
           start_time: string | null
           status: string | null
+          template_id: string | null
           title: string | null
           updated_at: string
           user_id: string
@@ -65,6 +66,7 @@ export type Database = {
           raw_event_data?: Json | null
           start_time?: string | null
           status?: string | null
+          template_id?: string | null
           title?: string | null
           updated_at?: string
           user_id: string
@@ -82,11 +84,19 @@ export type Database = {
           raw_event_data?: Json | null
           start_time?: string | null
           status?: string | null
+          template_id?: string | null
           title?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "calendar_events_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["template_id"]
+          },
           {
             foreignKeyName: "calendar_events_user_id_fkey"
             columns: ["user_id"]
