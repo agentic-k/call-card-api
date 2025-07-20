@@ -43,4 +43,44 @@ app.get('/google-calendar/calendar-events', async (c: Context) => {
   }
 })
 
+app.post('/google-calendar/calendar-events/:eventId/link-template', async (c: Context) => {
+  try {
+    const user = await getUserFromContext(c)
+    if (!user) {
+      return c.json({ error: 'User not found or not authenticated' }, 401)
+    }
+
+    const eventId = c.req.param('eventId')
+    const { templateId } = await c.req.json()
+
+    if (!templateId) {
+      return c.json({ error: 'templateId is required' }, 400)
+    }
+
+    const supabase = getSupabaseUserClient(c)
+
+    const { data, error } = await supabase
+      .from('calendar_events')
+      .update({ template_id: templateId })
+      .eq('id', eventId)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return c.json({ error: 'Event not found or access denied' }, 404)
+      }
+      console.error('Database error updating calendar event:', error)
+      return c.json({ error: `Database error: ${error.message}` }, 500)
+    }
+
+    return c.json(data)
+  } catch (error: unknown) {
+    console.error('Error linking template:', error)
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
+    return c.json({ error: errorMessage }, 500)
+  }
+})
+
 export default app
