@@ -54,12 +54,21 @@ app.post('/templates', async (c: Context) => {
   const user = await getUserFromContext(c)
   if (!user) return c.json({ error: 'User not found' }, 404)
 
+  // Validate required fields
+  if (!payload.template_name) {
+    return c.json({ error: 'template_name is required' }, 400)
+  }
+
+  // Set default values and merge with payload
+  const templateData = {
+    ...payload,
+    user_id: user.id,
+    is_default_template: payload.is_default_template ?? false // Set default value if not provided
+  }
+
   const { data, error } = await supabase
     .from('templates')
-    .insert({
-      ...payload,
-      user_id: user.id
-    })
+    .insert(templateData)
     .select()
     .single();
 
@@ -87,10 +96,21 @@ app.put('/templates/:id', async (c: Context) => {
   
   if (templateError) return c.json({ error: 'Template not found or access denied' }, 404)
 
+  // Validate required fields if they are being updated
+  if (payload.template_name === '') {
+    return c.json({ error: 'template_name cannot be empty' }, 400)
+  }
+
+  // Prepare update data
+  const updateData = {
+    ...payload,
+    updated_at: new Date().toISOString() // Ensure updated_at is set
+  }
+
   // Update the template
   const { data, error } = await supabase
     .from('templates')
-    .update(payload)
+    .update(updateData)
     .eq('template_id', id)
     .eq('user_id', user.id)
     .select()

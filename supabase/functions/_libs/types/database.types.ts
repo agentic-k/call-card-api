@@ -132,6 +132,47 @@ export type Database = {
         }
         Relationships: []
       }
+      templates: {
+        Row: {
+          content: Json | null
+          created_at: string
+          description: string | null
+          is_default_template: boolean
+          template_id: string
+          template_name: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          content?: Json | null
+          created_at?: string
+          description?: string | null
+          is_default_template?: boolean
+          template_id?: string
+          template_name: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          content?: Json | null
+          created_at?: string
+          description?: string | null
+          is_default_template?: boolean
+          template_id?: string
+          template_name?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "templates_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_google_tokens: {
         Row: {
           access_token_expires_at: string | null
