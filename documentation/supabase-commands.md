@@ -1,9 +1,12 @@
 # ********************** MIGRATIONS *********************** #
 1. Push migration 
-  `supabase db push --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres`
+`supabase db push --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres`
 
 2. Generate types 
-`supabase gen types typescript --local > supabase/types/database.types.ts`
+`supabase gen types typescript --local > 'supabase/functions/_libs/types/database.types.ts'`
+
+3. [Danger] Reset DB
+`supabase db reset --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres`
 
 
 # ********************** API *********************** #

@@ -1,4 +1,7 @@
 {
+  "deno.enable": true,
+  "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+  "typescript.validate.enable": false,
   "deno.enablePaths": [
     "supabase/functions"
   ],
@@ -22,3 +25,5 @@
     "editor.defaultFormatter": "vscode.typescript-language-features"
   }
 }
+
+

@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@hono/hono": "jsr:@hono/hono@^4.0.0",
+    "jsr:@supabase/functions-js/edge-runtime.d.ts": "jsr:@supabase/functions-js/edge-runtime.d.ts@2.0.1",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.49.4"
+  }
+} 
