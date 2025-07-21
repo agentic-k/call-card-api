@@ -2,11 +2,11 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.4'
 import { getValidAccessToken } from '../_libs/user-google-tokens.ts'
 import type { Tables, TablesInsert, Database } from '../_libs/types/database.types.ts'
 import { shouldUseMockData, getMockCallPackData } from '../agent-api/libs/mock-data.ts'
-import { 
+import {
   validateEnv,
-  createThread, 
-  runAssistant, 
-  processApiResponse 
+  createThread,
+  runAssistant,
+  processApiResponse
 } from '../agent-api/libs/langmsmith-helper.ts'
 
 // TYPES
@@ -45,7 +45,7 @@ async function syncCalendarEvents(
       timeMin.setHours(0, 0, 0, 0)
       params.append('timeMin', timeMin.toISOString())
     }
-    
+
     const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -97,6 +97,21 @@ async function syncCalendarEvents(
     }
 
     if (eventsToUpsert.length > 0) {
+      const eventIds = eventsToUpsert.map((e) => e.id!)
+      const { data: existingEventsData, error: existingEventsError } = await supabaseClient
+        .from('calendar_events')
+        .select('id, attendees, template_id')
+        .in('id', eventIds)
+
+      if (existingEventsError) {
+        console.warn('Could not fetch existing events for delta check, proceeding without.', {
+          error: existingEventsError,
+        })
+      }
+      const existingEventsMap = new Map(
+        (existingEventsData || []).map((event) => [event.id, event])
+      )
+
       const { data: upsertedEvents, error: upsertError } = await supabaseClient
         .from('calendar_events')
         .upsert(eventsToUpsert)
@@ -110,9 +125,37 @@ async function syncCalendarEvents(
             (e) => e.id === savedEvent.id
           )
           if (googleEvent) {
-            // Example usage of weather API (you can move this where needed)
-            await fetchWeatherData('London')
+            const existingEvent = existingEventsMap.get(savedEvent.id)
 
+            if (existingEvent?.template_id) {
+              const oldAttendees = (existingEvent.attendees as { email: string }[]) || []
+              const newAttendees = (savedEvent.attendees as { email: string }[]) || []
+
+              const oldEmails = oldAttendees.map((a) => a.email).sort()
+              const newEmails = newAttendees.map((a) => a.email).sort()
+
+              if (JSON.stringify(oldEmails) === JSON.stringify(newEmails)) {
+                console.log(
+                  `Event ${savedEvent.id} attendees unchanged. Skipping template regeneration.`
+                )
+                continue
+              }
+
+              console.log(
+                `Event ${savedEvent.id} attendees changed. Deleting old template ${existingEvent.template_id}.`
+              )
+              const { error: deleteError } = await supabaseClient
+                .from('templates')
+                .delete()
+                .eq('template_id', existingEvent.template_id)
+
+              if (deleteError) {
+                console.error(
+                  `Failed to delete old template ${existingEvent.template_id}:`,
+                  deleteError.message
+                )
+              }
+            }
             await triggerAgentForTemplateCreation(userId, savedEvent, googleEvent)
           }
         }
@@ -154,17 +197,15 @@ async function generateCallPack(
     if (shouldUseMockData()) {
       return getMockCallPackData()
     }
-    
+
     const agentPayload = {
       "template_context": callCardContext,
-      "linkedin_profile_url": prospectCompanyUrl,
       "prospect_company_url": prospectCompanyUrl,
       "client_company_url": userCompanyUrl,
     };
-    
+
     console.debug('Generating call pack with payload:', agentPayload)
-    
-    // Validate environment variables first
+
     try {
       validateEnv()
     } catch (envError) {
@@ -175,9 +216,9 @@ async function generateCallPack(
     console.debug('Attempting to create thread...')
     const threadId = await createThread()
     console.debug('Thread created successfully:', threadId)
-    
+
     const assistantRes = await runAssistant(threadId, agentPayload)
-    console.debug('Assistant response:', assistantRes)
+    console.debug('Assistant response received')
 
     if (!assistantRes?.messages?.length) {
       throw new Error('No messages in assistant response')
@@ -187,21 +228,18 @@ async function generateCallPack(
     if (!lastMsg.content) {
       throw new Error('Last message from assistant has no content')
     }
-    
+
     const apiResp = JSON.parse(lastMsg.content)
     return processApiResponse(apiResp)
-  } 
+  }
   catch (err: unknown) {
     console.error('Template generation failed:', err instanceof Error ? err.message : String(err))
     return { error: err instanceof Error ? err.message : 'Unknown error occurred' }
   }
 }
 
-async function triggerAgentForTemplateCreation(
-  userId: string,
-  savedEvent: Tables<'calendar_events'>,
-  googleEvent: GoogleCalendarEvent
-) {
+// Helper function to fetch user profile
+async function fetchUserProfile(userId: string) {
   const { data: userProfile, error: profileError } = await supabaseClient
     .from('profiles')
     .select('company_url, personal_context')
@@ -209,118 +247,167 @@ async function triggerAgentForTemplateCreation(
     .single()
 
   if (profileError || !userProfile) {
-    console.error('Could not fetch user profile:', profileError)
-    return
+    throw new Error(`Could not fetch user profile: ${profileError?.message || 'No profile found'}`)
   }
 
+  return {
+    company_url: userProfile.company_url,
+    personal_context: userProfile.personal_context
+  }
+}
+
+// Helper function to find prospect from attendees
+function findProspectFromAttendees(googleEvent: GoogleCalendarEvent) {
   const prospect = googleEvent.attendees?.find(
     (attendee) => attendee.email && !attendee.organizer && !attendee.resource
   )
 
   if (!prospect?.email) {
-    return
+    throw new Error('No prospect found for event')
   }
 
+  return prospect
+}
+
+// Helper function to create draft template
+async function createDraftTemplate(userId: string, googleEvent: GoogleCalendarEvent) {
+  const templateName = googleEvent.summary || 'Untitled Template'
+  const { data: draftTemplate, error: draftError } = await supabaseClient
+    .from('templates')
+    .insert({
+      template_name: templateName,
+      user_id: userId,
+      status: 'DRAFT',
+      description: googleEvent.description || 'New meeting scheduled',
+    })
+    .select('template_id')
+    .single()
+
+  if (draftError || !draftTemplate) {
+    throw new Error(`Failed to create draft template: ${draftError?.message || 'Unknown error'}`)
+  }
+
+  return draftTemplate.template_id
+}
+
+// Helper function to link template to calendar event
+async function linkTemplateToEvent(templateId: string, savedEvent: Tables<'calendar_events'>) {
+  const { error: eventUpdateError } = await supabaseClient
+    .from('calendar_events')
+    .update({ template_id: templateId })
+    .eq('id', savedEvent.id)
+
+  if (eventUpdateError) {
+    throw new Error(`Failed to link to calendar event: ${eventUpdateError.message}`)
+  }
+}
+
+// Helper function to get company URL from email domain
+function getCompanyUrlFromEmail(email: string): string {
+  const domain = email.split('@')[1]
+  if (!domain) {
+    throw new Error('Could not extract domain from email.')
+  }
+  return `https://www.${domain}`
+}
+
+// Helper function to generate and update template with call pack
+async function generateAndUpdateTemplate(
+  templateId: string,
+  userProfile: { personal_context: string | null; company_url: string | null },
+  prospectEmail: string,
+  savedEventId: string
+) {
+  const prospectCompanyUrl = getCompanyUrlFromEmail(prospectEmail)
+  console.debug('Generating call pack for event:', savedEventId)
+
+  const callPack = await generateCallPack(
+    userProfile.personal_context,
+    prospectCompanyUrl,
+    userProfile.company_url
+  )
+
+  if (!callPack || 'error' in callPack || !callPack.name || !callPack.description) {
+    throw new Error('error' in callPack ? callPack.error : 'Failed to generate a valid call pack.')
+  }
+
+  const { error: updateError } = await supabaseClient
+    .from('templates')
+    .update({
+      template_name: callPack.name,
+      content: callPack,
+      description: callPack.description,
+      status: 'ACTIVE',
+      error_message: null,
+    })
+    .eq('template_id', templateId)
+
+  if (updateError) {
+    throw new Error(`Failed to update template: ${updateError.message}`)
+  }
+}
+
+// Main function that orchestrates the template creation process
+async function triggerAgentForTemplateCreation(
+  userId: string,
+  savedEvent: Tables<'calendar_events'>,
+  googleEvent: GoogleCalendarEvent
+) {
+  let templateId: string | undefined
+
   try {
-    const prospectDomain = prospect.email.split('@')[1]
-    if (!prospectDomain) {
-      throw new Error('Could not extract domain from prospect email.')
+    // Step 1: Fetch user profile
+    const userProfile = await fetchUserProfile(userId)
+    console.log('userProfile', userProfile)
+
+    // ************ TESTING START ************ //
+    if (shouldUseMockData()) {
+      googleEvent.attendees = [
+        {
+          "self": true,
+          "email": "test@brightdata.com",
+          "organizer": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "test@amazon.com",
+          "responseStatus": "needsAction"
+        }
+      ]
     }
-    const prospectCompanyUrl = `https://www.${prospectDomain}`
-    
-    console.debug('Generating call pack for event:', savedEvent.id)
+    // ************ TESTING END ************ //
 
-    const callPack = await generateCallPack(
-      userProfile.personal_context,
-      prospectCompanyUrl,
-      userProfile.company_url
-    )
-    
-    if (!callPack || 'error' in callPack || !callPack.name || !callPack.description) {
-      return
-    }
+    // Step 2: Find prospect from attendees
+    const prospect = findProspectFromAttendees(googleEvent)
 
-    const { data: newTemplate, error: templateError } = await supabaseClient
-      .from('templates')
-      .insert({
-        template_name: callPack.name,
-        content: callPack,
-        user_id: userId,
-        description: callPack.description,
-      })
-      .select('template_id')
-      .single()
+    // Step 3: Create draft template
+    templateId = await createDraftTemplate(userId, googleEvent)
 
-    if (templateError || !newTemplate) {
-      console.error('Failed to save template:', templateError)
-      return
-    }
+    // Step 4: Link template to calendar event
+    await linkTemplateToEvent(templateId, savedEvent)
 
-    const { error: eventUpdateError } = await supabaseClient
-      .from('calendar_events')
-      .update({ template_id: newTemplate.template_id })
-      .eq('id', savedEvent.id)
-
-    if (eventUpdateError) {
-      console.error('Failed to link template to event:', eventUpdateError)
-    }
+    // Step 5: Generate and update template with call pack
+    await generateAndUpdateTemplate(templateId, userProfile, prospect.email, savedEvent.id)
   } catch (error) {
     console.error('Failed to create template:', error)
-  }
-}
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
 
-// Weather API Types
-interface WeatherResponse {
-  weather: {
-    description: string;
-    main: string;
-  }[];
-  main: {
-    temp: number;
-    feels_like: number;
-    humidity: number;
-  };
-  name: string;
-}
-
-/**
- * Fetches current weather data for a given city using the OpenWeather API
- * @param city - The name of the city to get weather for
- * @returns Promise containing the weather data or null if the request fails
- */
-async function fetchWeatherData(city: string): Promise<WeatherResponse | null> {
-  try {
-    // Note: In production, use environment variables for API keys
-    const API_KEY = 'YOUR_API_KEY' // Replace with actual API key in production
-    const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${API_KEY}`
-    
-    const response = await fetch(url)
-    if (!response.ok) {
-      console.error('Weather API Error:', await response.text())
-      return null
+    // Update template status to ERROR if we have a templateId
+    if (templateId) {
+      await supabaseClient
+        .from('templates')
+        .update({ status: 'ERROR', error_message: errorMessage })
+        .eq('template_id', templateId)
     }
-
-    const data: WeatherResponse = await response.json()
-    console.log('Weather Data for', city, ':', {
-      temperature: data.main.temp,
-      feels_like: data.main.feels_like,
-      humidity: data.main.humidity,
-      description: data.weather[0]?.description
-    })
-
-    return data
-  } catch (error) {
-    console.error('Failed to fetch weather data:', error)
-    return null
   }
 }
+
 
 // Main webhook handler
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 })
   }
-
 
   const channelId = req.headers.get('X-Goog-Channel-Id')
   const resourceState = req.headers.get('X-Goog-Resource-State')
@@ -343,6 +430,7 @@ Deno.serve(async (req) => {
 
     const { user_id, last_sync_token, resource_id: calendar_id } = channel
 
+    console.log('resourceState', resourceState)
     if (resourceState === 'not_exists') {
       await supabaseClient.from('calendar_events').delete().eq('calendar_id', calendar_id)
       await supabaseClient.from('watch_channels').delete().eq('channel_id', channelId)
