@@ -147,7 +147,9 @@ export type Database = {
           content: Json | null
           created_at: string
           description: string | null
+          error_message: string | null
           is_default_template: boolean
+          status: Database["public"]["Enums"]["template_status"]
           template_id: string
           template_name: string
           updated_at: string
@@ -157,7 +159,9 @@ export type Database = {
           content?: Json | null
           created_at?: string
           description?: string | null
+          error_message?: string | null
           is_default_template?: boolean
+          status?: Database["public"]["Enums"]["template_status"]
           template_id?: string
           template_name: string
           updated_at?: string
@@ -167,7 +171,9 @@ export type Database = {
           content?: Json | null
           created_at?: string
           description?: string | null
+          error_message?: string | null
           is_default_template?: boolean
+          status?: Database["public"]["Enums"]["template_status"]
           template_id?: string
           template_name?: string
           updated_at?: string
@@ -264,7 +270,14 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      template_status:
+        | "DRAFT"
+        | "AGENT_ASSISTANCE_REQUESTED"
+        | "AGENT_CALL_SCHEDULED"
+        | "IN_REVIEW"
+        | "ACTIVE"
+        | "ARCHIVED"
+        | "ERROR"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -394,7 +407,17 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      template_status: [
+        "DRAFT",
+        "AGENT_ASSISTANCE_REQUESTED",
+        "AGENT_CALL_SCHEDULED",
+        "IN_REVIEW",
+        "ACTIVE",
+        "ARCHIVED",
+        "ERROR",
+      ],
+    },
   },
 } as const
 

@@ -3,34 +3,19 @@ import { getValidAccessToken } from '../_libs/user-google-tokens.ts'
 import type { Tables, TablesInsert, Database } from '../_libs/types/database.types.ts'
 import { shouldUseMockData, getMockCallPackData } from '../agent-api/libs/mock-data.ts'
 import { 
+  validateEnv,
   createThread, 
   runAssistant, 
   processApiResponse 
 } from '../agent-api/libs/langmsmith-helper.ts'
 
+// TYPES
+import type { GoogleCalendarEvent } from '../_libs/types/google/calendar.types.ts'
+
+
 // Type definitions
 type WatchChannel = Pick<Tables<'watch_channels'>, 'user_id' | 'last_sync_token' | 'resource_id'>
 
-interface GoogleCalendarEvent {
-  id: string
-  status: 'confirmed' | 'tentative' | 'cancelled'
-  summary?: string
-  description?: string
-  start?: { dateTime?: string; date?: string }
-  end?: { dateTime?: string; date?: string }
-  htmlLink?: string
-  updated?: string
-  etag?: string
-  attendees?: {
-    email: string
-    displayName?: string
-    organizer?: boolean
-    self?: boolean
-    responseStatus?: string
-    resource?: boolean
-  }[]
-  [key: string]: any
-}
 
 interface MeetingTemplate {
   name: string
@@ -125,7 +110,10 @@ async function syncCalendarEvents(
             (e) => e.id === savedEvent.id
           )
           if (googleEvent) {
-            triggerAgentForTemplateCreation(userId, savedEvent, googleEvent)
+            // Example usage of weather API (you can move this where needed)
+            await fetchWeatherData('London')
+
+            await triggerAgentForTemplateCreation(userId, savedEvent, googleEvent)
           }
         }
       }
@@ -168,14 +156,28 @@ async function generateCallPack(
     }
     
     const agentPayload = {
-      callCardContext,
-      prospectLinkedinUrl: prospectCompanyUrl,
-      prospectCompanyUrl,
-      clientCompanyUrl: userCompanyUrl,
+      "template_context": callCardContext,
+      "linkedin_profile_url": prospectCompanyUrl,
+      "prospect_company_url": prospectCompanyUrl,
+      "client_company_url": userCompanyUrl,
     };
     
+    console.debug('Generating call pack with payload:', agentPayload)
+    
+    // Validate environment variables first
+    try {
+      validateEnv()
+    } catch (envError) {
+      console.error('Environment validation failed:', envError)
+      return { error: 'LangSmith configuration is incomplete' }
+    }
+
+    console.debug('Attempting to create thread...')
     const threadId = await createThread()
+    console.debug('Thread created successfully:', threadId)
+    
     const assistantRes = await runAssistant(threadId, agentPayload)
+    console.debug('Assistant response:', assistantRes)
 
     if (!assistantRes?.messages?.length) {
       throw new Error('No messages in assistant response')
@@ -226,6 +228,8 @@ async function triggerAgentForTemplateCreation(
     }
     const prospectCompanyUrl = `https://www.${prospectDomain}`
     
+    console.debug('Generating call pack for event:', savedEvent.id)
+
     const callPack = await generateCallPack(
       userProfile.personal_context,
       prospectCompanyUrl,
@@ -265,11 +269,58 @@ async function triggerAgentForTemplateCreation(
   }
 }
 
+// Weather API Types
+interface WeatherResponse {
+  weather: {
+    description: string;
+    main: string;
+  }[];
+  main: {
+    temp: number;
+    feels_like: number;
+    humidity: number;
+  };
+  name: string;
+}
+
+/**
+ * Fetches current weather data for a given city using the OpenWeather API
+ * @param city - The name of the city to get weather for
+ * @returns Promise containing the weather data or null if the request fails
+ */
+async function fetchWeatherData(city: string): Promise<WeatherResponse | null> {
+  try {
+    // Note: In production, use environment variables for API keys
+    const API_KEY = 'YOUR_API_KEY' // Replace with actual API key in production
+    const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${API_KEY}`
+    
+    const response = await fetch(url)
+    if (!response.ok) {
+      console.error('Weather API Error:', await response.text())
+      return null
+    }
+
+    const data: WeatherResponse = await response.json()
+    console.log('Weather Data for', city, ':', {
+      temperature: data.main.temp,
+      feels_like: data.main.feels_like,
+      humidity: data.main.humidity,
+      description: data.weather[0]?.description
+    })
+
+    return data
+  } catch (error) {
+    console.error('Failed to fetch weather data:', error)
+    return null
+  }
+}
+
 // Main webhook handler
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 })
   }
+
 
   const channelId = req.headers.get('X-Goog-Channel-Id')
   const resourceState = req.headers.get('X-Goog-Resource-State')
