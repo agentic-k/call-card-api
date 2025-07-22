@@ -198,8 +198,13 @@ async function generateCallPack(
       return getMockCallPackData()
     }
 
+    // Ensure required parameters are not empty
+    if (!prospectCompanyUrl || !userCompanyUrl) {
+      return { error: 'Prospect company URL or user company URL is required' }
+    }
+
     const agentPayload = {
-      "template_context": callCardContext,
+      "template_context": callCardContext || "",
       "prospect_company_url": prospectCompanyUrl,
       "client_company_url": userCompanyUrl,
     };
@@ -242,7 +247,7 @@ async function generateCallPack(
 async function fetchUserProfile(userId: string) {
   const { data: userProfile, error: profileError } = await supabaseClient
     .from('profiles')
-    .select('company_url, personal_context')
+    .select('company_url, personal_context, email')
     .eq('id', userId)
     .single()
 
@@ -252,7 +257,8 @@ async function fetchUserProfile(userId: string) {
 
   return {
     company_url: userProfile.company_url,
-    personal_context: userProfile.personal_context
+    personal_context: userProfile.personal_context,
+    email: userProfile.email
   }
 }
 
@@ -314,17 +320,20 @@ function getCompanyUrlFromEmail(email: string): string {
 // Helper function to generate and update template with call pack
 async function generateAndUpdateTemplate(
   templateId: string,
-  userProfile: { personal_context: string | null; company_url: string | null },
+  userProfile: { personal_context: string | null; company_url: string | null; email: string | null },
   prospectEmail: string,
   savedEventId: string
 ) {
   const prospectCompanyUrl = getCompanyUrlFromEmail(prospectEmail)
   console.debug('Generating call pack for event:', savedEventId)
 
+  // Get user company URL from email, similar to how we get prospect company URL
+  const userCompanyUrl = userProfile.email ? getCompanyUrlFromEmail(userProfile.email) : null
+
   const callPack = await generateCallPack(
     userProfile.personal_context,
     prospectCompanyUrl,
-    userProfile.company_url
+    userCompanyUrl
   )
 
   if (!callPack || 'error' in callPack || !callPack.name || !callPack.description) {
