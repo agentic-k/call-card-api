@@ -5,6 +5,8 @@
 # dotenvx
 .env.keys
 .env.local
+.env.production
+
 .env.*
 
 # Supabase
