@@ -209,7 +209,7 @@ async function generateCallPack(
       "client_company_url": userCompanyUrl,
     };
 
-    console.debug('Generating call pack with payload:', agentPayload)
+    // console.debug('Generating call pack with payload:', agentPayload)
 
     try {
       validateEnv()
@@ -218,12 +218,12 @@ async function generateCallPack(
       return { error: 'LangSmith configuration is incomplete' }
     }
 
-    console.debug('Attempting to create thread...')
+    // console.debug('Attempting to create thread...')
     const threadId = await createThread()
-    console.debug('Thread created successfully:', threadId)
+    // console.debug('Thread created successfully:', threadId)
 
     const assistantRes = await runAssistant(threadId, agentPayload)
-    console.debug('Assistant response received')
+    // console.debug('Assistant response received')
 
     if (!assistantRes?.messages?.length) {
       throw new Error('No messages in assistant response')
@@ -325,7 +325,7 @@ async function generateAndUpdateTemplate(
   savedEventId: string
 ) {
   const prospectCompanyUrl = getCompanyUrlFromEmail(prospectEmail)
-  console.debug('Generating call pack for event:', savedEventId)
+  // console.debug('Generating call pack for event:', savedEventId)
 
   // Get user company URL from email, similar to how we get prospect company URL
   const userCompanyUrl = userProfile.email ? getCompanyUrlFromEmail(userProfile.email) : null
