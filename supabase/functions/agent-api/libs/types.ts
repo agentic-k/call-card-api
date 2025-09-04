@@ -1,25 +1,32 @@
 // Types for meeting templates
-export interface ChecklistItem {
-    id: string;
+export interface Question {
+    id?: string;
     text: string;
-    checked: boolean;
+    checked?: boolean;
 }
 
-export interface MeetingSection {
-    id: string;
+export interface UseCase {
+    id?: string;
     title: string;
-    durationMinutes: number;
-    questions: ChecklistItem[];
+    description: string;
+    questions: Question[];
+}
+
+export interface PainPoint {
+    id?: string;
+    title: string;
+    description: string;
+    questions: Question[];
 }
 
 export interface MeetingTemplate {
-    id: string;
+    id?: string;
     name: string;
     description: string;
-    totalDurationMinutes: number;
-    sections: MeetingSection[];
-    createdAt: string;
-    updatedAt: string;
+    useCases: UseCase[];
+    painPoints: PainPoint[];
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface AITemplateRequest {
@@ -32,10 +39,16 @@ export interface AITemplateRequest {
 export interface APIResponse {
     name: string;
     description: string;
-    totalDurationMinutes: number;
-    sections: Array<{
+    useCases: Array<{
         title: string;
-        durationMinutes: number;
+        description: string;
+        questions: Array<{
+            text: string;
+        }>;
+    }>;
+    painPoints: Array<{
+        title: string;
+        description: string;
         questions: Array<{
             text: string;
         }>;

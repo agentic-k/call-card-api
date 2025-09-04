@@ -101,12 +101,21 @@ export function processApiResponse(template: APIResponse): MeetingTemplate {
     id: uuidv4(),
     name: template.name,
     description: template.description,
-    totalDurationMinutes: template.totalDurationMinutes,
-    sections: template.sections.map(sec => ({
+    useCases: template.useCases.map(useCase => ({
       id: uuidv4(),
-      title: sec.title,
-      durationMinutes: sec.durationMinutes,
-      questions: sec.questions.map(q => ({
+      title: useCase.title,
+      description: useCase.description,
+      questions: useCase.questions.map(q => ({
+        id: uuidv4(),
+        text: q.text,
+        checked: false
+      }))
+    })),
+    painPoints: template.painPoints.map(painPoint => ({
+      id: uuidv4(),
+      title: painPoint.title,
+      description: painPoint.description,
+      questions: painPoint.questions.map(q => ({
         id: uuidv4(),
         text: q.text,
         checked: false

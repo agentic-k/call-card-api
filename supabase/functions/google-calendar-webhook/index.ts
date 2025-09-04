@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.4'
 import { getValidAccessToken } from '../_libs/user-google-tokens.ts'
-import type { Tables, TablesInsert, Database } from '../_libs/types/database.types.ts'
+import type { Tables, TablesInsert, Database, Json } from '../_libs/types/database.types.ts'
 import { shouldUseMockData, getMockCallPackData } from '../agent-api/libs/mock-data.ts'
 import {
   validateEnv,
@@ -11,17 +11,14 @@ import {
 
 // TYPES
 import type { GoogleCalendarEvent } from '../_libs/types/google/calendar.types.ts'
+import type { MeetingTemplate } from '../agent-api/libs/types.ts'
 
 
 // Type definitions
 type WatchChannel = Pick<Tables<'watch_channels'>, 'user_id' | 'last_sync_token' | 'resource_id'>
 
-
-interface MeetingTemplate {
-  name: string
-  description: string
-  [key: string]: any
-}
+// Define a type for error responses
+type ErrorResponse = { error: string }
 
 // Initialize Supabase client
 const supabaseClient = createClient<Database>(
@@ -192,7 +189,7 @@ async function generateCallPack(
   callCardContext: string | null,
   prospectCompanyUrl: string,
   userCompanyUrl: string | null
-): Promise<MeetingTemplate | { error: string }> {
+): Promise<MeetingTemplate | ErrorResponse> {
   try {
     if (shouldUseMockData()) {
       return getMockCallPackData()
@@ -322,7 +319,7 @@ async function generateAndUpdateTemplate(
   templateId: string,
   userProfile: { personal_context: string | null; company_url: string | null; email: string | null },
   prospectEmail: string,
-  savedEventId: string
+  _savedEventId: string
 ) {
   const prospectCompanyUrl = getCompanyUrlFromEmail(prospectEmail)
   // console.debug('Generating call pack for event:', savedEventId)
@@ -336,15 +333,28 @@ async function generateAndUpdateTemplate(
     userCompanyUrl
   )
 
-  if (!callPack || 'error' in callPack || !callPack.name || !callPack.description) {
-    throw new Error('error' in callPack ? callPack.error : 'Failed to generate a valid call pack.')
+  if (!callPack) {
+    throw new Error('Failed to generate a call pack')
+  }
+  
+  if ('error' in callPack) {
+    throw new Error(callPack.error)
+  }
+  
+  if (!callPack.name || !callPack.description) {
+    throw new Error('Call pack is missing required name or description')
+  }
+  
+  // Verify the new callPack structure has the expected properties
+  if (!callPack.useCases || !callPack.painPoints) {
+    console.warn('Call pack is missing useCases or painPoints properties:', callPack)
   }
 
   const { error: updateError } = await supabaseClient
     .from('templates')
     .update({
       template_name: callPack.name,
-      content: callPack,
+      content: callPack as unknown as Json,
       description: callPack.description,
       status: 'ACTIVE',
       error_message: null,
