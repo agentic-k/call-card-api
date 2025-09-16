@@ -35,14 +35,13 @@ app.post('/google-auth-callback', async (c: Context) => {
         code: authorizationCode,
         client_id: GOOGLE_CLIENT_ID,
         client_secret: GOOGLE_CLIENT_SECRET,
-        redirect_uri: 'http://127.0.0.1:8080', // Must match the value in Google Console
+        redirect_uri: 'http://127.0.0.1:8080/auth-callback', // Must match the value in Google Console and Supabase config
         grant_type: 'authorization_code',
       }),
     });
 
     if (!tokenResponse.ok) {
       const errorBody = await tokenResponse.text();
-      console.error('Google token exchange failed:', errorBody);
       return c.json({ error: 'Failed to exchange authorization code for tokens.', details: errorBody }, 502);
     }
 
@@ -64,7 +63,6 @@ app.post('/google-auth-callback', async (c: Context) => {
         }, { onConflict: 'user_id' }); // Specify the conflict target
 
       if (upsertError) {
-        console.error('Error storing tokens in database:', upsertError);
         return c.json({ error: 'Failed to store tokens in the database.', details: upsertError.message }, 500);
       }
 
@@ -82,7 +80,6 @@ app.post('/google-auth-callback', async (c: Context) => {
     }
 
   } catch (error) {
-    console.error('An unexpected error occurred:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return c.json({ error: 'An internal server error occurred.', details: errorMessage }, 500);
   }
