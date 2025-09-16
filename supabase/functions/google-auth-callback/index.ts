@@ -5,6 +5,29 @@ import { getUserFromContext, getSupabaseServiceRoleClient } from '../_libs/supab
 import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from '../_libs/config/google-config.ts';
 import type { Database } from '../_libs/types/database.types.ts';
 
+/**
+ * Get the appropriate redirect URI based on the environment
+ * @returns {string} The redirect URI for the current environment
+ */
+function getRedirectUri(): string {
+  // Check for custom redirect URI in environment variables
+  const customRedirectUri = Deno.env.get('OAUTH_REDIRECT_URI');
+  if (customRedirectUri) {
+    return customRedirectUri;
+  }
+  
+  // Check if we're in development mode
+  const isDevelopment = Deno.env.get('ENVIRONMENT') === 'development' || 
+                       Deno.env.get('NODE_ENV') === 'development';
+  
+  if (isDevelopment) {
+    return 'http://127.0.0.1:8080/auth-callback';
+  }
+  
+  // For production, use the production redirect URI
+  return Deno.env.get('OAUTH_REDIRECT_URI_PROD') || 'https://your-app-domain.com/auth-callback';
+}
+
 const app = new Hono();
 
 // Apply CORS middleware to the specific route
@@ -35,7 +58,7 @@ app.post('/google-auth-callback', async (c: Context) => {
         code: authorizationCode,
         client_id: GOOGLE_CLIENT_ID,
         client_secret: GOOGLE_CLIENT_SECRET,
-        redirect_uri: 'http://127.0.0.1:8080/auth-callback', // Must match the value in Google Console and Supabase config
+        redirect_uri: getRedirectUri(), // Environment-aware redirect URI
         grant_type: 'authorization_code',
       }),
     });
