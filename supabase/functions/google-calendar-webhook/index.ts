@@ -408,7 +408,7 @@ async function triggerAgentForTemplateCreation(
     // Step 5: Generate and update template with call pack
     await generateAndUpdateTemplate(templateId, userProfile, prospect.email, savedEvent.id)
   } catch (error) {
-    console.error('Failed to create template:', error)
+    console.error('Failed to Create Callcard:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
 
     // Update template status to ERROR if we have a templateId
