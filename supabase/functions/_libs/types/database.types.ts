@@ -149,6 +149,7 @@ export type Database = {
           description: string | null
           error_message: string | null
           is_default_template: boolean
+          sales_framework: Json | null
           status: Database["public"]["Enums"]["template_status"]
           template_id: string
           template_name: string
@@ -161,6 +162,7 @@ export type Database = {
           description?: string | null
           error_message?: string | null
           is_default_template?: boolean
+          sales_framework?: Json | null
           status?: Database["public"]["Enums"]["template_status"]
           template_id?: string
           template_name: string
@@ -173,6 +175,7 @@ export type Database = {
           description?: string | null
           error_message?: string | null
           is_default_template?: boolean
+          sales_framework?: Json | null
           status?: Database["public"]["Enums"]["template_status"]
           template_id?: string
           template_name?: string
