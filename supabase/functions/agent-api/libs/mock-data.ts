@@ -152,4 +152,59 @@ export function shouldUseMockData(): boolean {
  */
 export function getMockCallPackData(): MeetingTemplate {
     return mockCallPackData
-} 
+}
+
+// Mock data for call scoring
+export const mockCallScoringData = {
+  sections: [
+    {
+      title: "Problem Recognition",
+      questions: [
+        {
+          id: "pr1",
+          text: "Identified customer's pain points",
+          covered: true
+        },
+        {
+          id: "pr2",
+          text: "Explored impact of current challenges",
+          covered: false
+        }
+      ]
+    },
+    {
+      title: "Solution Presentation",
+      questions: [
+        {
+          id: "sp1",
+          text: "Presented relevant features",
+          covered: true
+        },
+        {
+          id: "sp2",
+          text: "Demonstrated value proposition",
+          covered: true
+        }
+      ]
+    },
+    {
+      title: "Objection Handling",
+      questions: [
+        {
+          id: "oh1",
+          text: "Addressed pricing concerns",
+          covered: false
+        },
+        {
+          id: "oh2",
+          text: "Handled implementation timeline objections",
+          covered: false
+        }
+      ]
+    }
+  ]
+}
+
+export function getMockCallScoringData() {
+  return mockCallScoringData;
+}

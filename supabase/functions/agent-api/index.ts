@@ -15,7 +15,8 @@ import {
   type QuestionInput
 } from './libs/openai-helper.ts'
 
-import { shouldUseMockData, getMockCallPackData } from './libs/mock-data.ts'
+import { shouldUseMockData, getMockCallPackData, getMockCallScoringData } from './libs/mock-data.ts'
+import type { CallScoringRequest } from '../_libs/types/langsmith/call-scoring.types.ts'
 
 // Validate environment variables
 validateEnv()
@@ -96,6 +97,34 @@ app.post('/agent-api/check-answered-questions', async (c) => {
       ? 401 : 500;
 
     return c.json({ error: errorMessage }, status);
+  }
+});
+
+// ---------------------------------------------------------------------------------------------------- //
+// Call Card Scoring Route
+// ---------------------------------------------------------------------------------------------------- //
+app.post('/agent-api/call-card-scoring', async (c) => {
+  try {
+    // Check if we should use mock data
+    if (shouldUseMockData()) {
+      console.log('Using mock data for call-card-scoring')
+      return c.json(getMockCallScoringData())
+    }
+
+    const payload = await c.req.json() as CallScoringRequest
+    
+    if (!payload.framework || !payload.content || !payload.transcript) {
+      return c.json({ error: 'Missing required fields: framework, content, and transcript' }, 400);
+    }
+
+    // TODO: Implement actual scoring logic here
+    // For now, return mock data even in non-mock mode
+    return c.json(getMockCallScoringData())
+
+  } catch (error) {
+    console.error('Error in call-card-scoring:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return c.json({ error: errorMessage }, 500);
   }
 });
 
