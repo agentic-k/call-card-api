@@ -11,7 +11,8 @@ import type { APIResponse, MeetingTemplate } from './types.ts'
 const {
   LANGSMITH_API_KEY,
   LANGSMITH_API_URL,
-  LANGSMITH_CALL_TEMPLATE_CREATE_TEMPLATE_ASSISTANT_ID
+  LANGSMITH_CALL_TEMPLATE_CREATE_TEMPLATE_ASSISTANT_ID,
+  LANGSMITH_CALL_CARD_LEAD_SCORING_ASSISTANT_ID
 } = Deno.env.toObject()
 
 // Validate environment variables
@@ -24,6 +25,11 @@ export function validateEnv() {
     throw new Error(
       'Missing one of LANGSMITH_API_KEY, LANGSMITH_API_URL, or LANGSMITH_CALL_TEMPLATE_CREATE_TEMPLATE_ASSISTANT_ID'
     )
+  }
+  
+  // Warn if lead scoring assistant ID is missing but don't throw error
+  if (!LANGSMITH_CALL_CARD_LEAD_SCORING_ASSISTANT_ID) {
+    console.warn('LANGSMITH_CALL_CARD_LEAD_SCORING_ASSISTANT_ID is not set. Lead scoring functionality will use mock data.')
   }
 }
 
@@ -80,13 +86,42 @@ export async function createThread(): Promise<string> {
   }
 }
 
-export function runAssistant(threadId: string, input: Record<string, unknown>) {
+/**
+ * Run a LangSmith assistant based on the specified mode
+ * @param threadId - The thread ID to run the assistant on
+ * @param input - The input data for the assistant
+ * @param mode - The assistant mode to use ('create-template' or 'lead-scoring')
+ * @returns The assistant response
+ */
+export function runAssistant(
+  threadId: string, 
+  input: Record<string, unknown>, 
+  mode: 'create-template' | 'lead-scoring' = 'create-template'
+) {
+  let assistantId: string;
+  
+  switch (mode) {
+    case 'lead-scoring':
+      if (!LANGSMITH_CALL_CARD_LEAD_SCORING_ASSISTANT_ID) {
+        throw new Error('LANGSMITH_CALL_CARD_LEAD_SCORING_ASSISTANT_ID is not set');
+      }
+      assistantId = LANGSMITH_CALL_CARD_LEAD_SCORING_ASSISTANT_ID;
+      console.log(`Using lead-scoring assistant: ${assistantId}`);
+      break;
+    
+    case 'create-template':
+    default:
+      assistantId = LANGSMITH_CALL_TEMPLATE_CREATE_TEMPLATE_ASSISTANT_ID;
+      console.log(`Using create-template assistant: ${assistantId}`);
+      break;
+  }
+  
   return lsFetch(
     `/threads/${threadId}/runs/wait`,
     {
       method: 'POST',
       body: JSON.stringify({
-        assistant_id: LANGSMITH_CALL_TEMPLATE_CREATE_TEMPLATE_ASSISTANT_ID,
+        assistant_id: assistantId,
         input: input
       })
     }
@@ -94,7 +129,7 @@ export function runAssistant(threadId: string, input: Record<string, unknown>) {
 }
 
 // --------------------
-// Response Processor
+// Response Processors
 // --------------------
 export function processApiResponse(template: APIResponse): MeetingTemplate {
   return {
@@ -124,4 +159,90 @@ export function processApiResponse(template: APIResponse): MeetingTemplate {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   }
+}
+
+/**
+ * Process lead scoring response from LangSmith
+ * 
+ * This function converts the raw input or response from LangSmith into the expected LeadScoringResponse format
+ * 
+ * @param rawResponse - The raw response from LangSmith
+ * @returns A properly formatted LeadScoringResponse object
+ */
+export function processLeadScoringResponse(rawResponse: Record<string, unknown>) {
+  // If we get back the input payload, we need to transform it
+  if (rawResponse.framework && Array.isArray(rawResponse.questions) && typeof rawResponse.questions[0] === 'string') {
+    // This is the input payload, not the expected response
+    // Transform it into the expected format
+    const framework = rawResponse.framework;
+    const questions = rawResponse.questions.map((q: string) => {
+      return {
+        question: q,
+        status: "unanswered" as "unanswered" | "answered_by_buyer" | "answered_via_confirmation" | "partial_or_unclear",
+        asked: false,
+        confidence: 0.0,
+        evidence: "Question not analyzed in transcript",
+        turn_ids: [] as number[]
+      };
+    });
+
+    // Check if any questions were asked in the transcript
+    const transcriptData = rawResponse.transcript as { turns?: Array<{ text: string, speaker: string }> };
+    if (transcriptData?.turns) {
+      const transcript = transcriptData.turns.map((t) => t.text).join(' ').toLowerCase();
+      
+      // Simple matching to see if any questions appear in the transcript
+      questions.forEach((q) => {
+        const questionWords = q.question.toLowerCase().split(' ');
+        const significantWords = questionWords.filter((w: string) => w.length > 4);
+        
+        // Check if significant words from the question appear in the transcript
+        const matchCount = significantWords.filter((word: string) => transcript.includes(word)).length;
+        const matchRatio = matchCount / significantWords.length;
+        
+        if (matchRatio > 0.5) {
+          q.asked = true;
+          q.status = "partial_or_unclear" as const;
+          q.confidence = 0.6;
+          q.evidence = "Question appears to have been discussed in the transcript";
+        }
+      });
+    }
+
+    return {
+      framework,
+      questions,
+      nextBestQuestions: [],
+      summary: "Automated analysis based on transcript content"
+    };
+  }
+  
+  // If we already have the expected format, return it as is
+  if (rawResponse.framework && 
+      Array.isArray(rawResponse.questions) && 
+      rawResponse.questions.length > 0 && 
+      typeof rawResponse.questions[0] === 'object' &&
+      'status' in rawResponse.questions[0]) {
+    return rawResponse;
+  }
+  
+  // If we have a message format, try to extract the response
+  const messages = rawResponse.messages as Array<{content: string | Record<string, unknown>}> | undefined;
+  if (messages && messages.length > 0) {
+    try {
+      const lastMessage = messages[messages.length - 1];
+      const content = typeof lastMessage.content === 'string' 
+        ? JSON.parse(lastMessage.content) 
+        : lastMessage.content;
+        
+      if (content.framework && Array.isArray(content.questions)) {
+        return content;
+      }
+    } catch (error) {
+      console.error('Error parsing message content:', error);
+    }
+  }
+  
+  // If we can't determine the format, throw an error
+  throw new Error('Unable to process lead scoring response: Invalid format');
 }

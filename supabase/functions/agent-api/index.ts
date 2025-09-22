@@ -6,17 +6,15 @@ import {
   validateEnv, 
   createThread, 
   runAssistant, 
-  processApiResponse 
+  processApiResponse,
+  processLeadScoringResponse
 } from './libs/langmsmith-helper.ts'
 
 import {
-  validateOpenAIEnv,
-  analyzeTranscriptQuestions,
-  type QuestionInput
+  validateOpenAIEnv
 } from './libs/openai-helper.ts'
 
-import { shouldUseMockData, getMockCallPackData, getMockCallScoringData } from './libs/mock-data.ts'
-import type { CallScoringRequest } from '../_libs/types/langsmith/call-scoring.types.ts'
+import type { LeadScoringRequest } from './libs/types.ts'
 
 // Validate environment variables
 validateEnv()
@@ -29,16 +27,13 @@ const app = new Hono()
 // ---------------------------------------------------------------------------------------------------- //
 app.use('/agent-api/*', createCorsMiddleware())
 
+/**
+ * @deprecated 'just remove this route'
+ */
 // ---------------------------------------------------------------------------------------------------- //
 // Create-Call-Pack Route
 // ---------------------------------------------------------------------------------------------------- //
 app.post('/agent-api/create-call-pack', async (c: Context) => {
-  // Check if we should use mock data
-  if (shouldUseMockData() ) {
-    console.log('Using mock data for create-call-pack')
-    return c.json(getMockCallPackData())
-  }
-
   const payload = await c.req.json() as AITemplateRequest
   
   if (!payload.prospectLinkedinUrl || !payload.prospectCompanyUrl || !payload.clientCompanyUrl) {
@@ -54,10 +49,9 @@ app.post('/agent-api/create-call-pack', async (c: Context) => {
 
   try {
     const threadId = await createThread()
-    const assistantRes = await runAssistant(threadId, agentPayload)
+    const assistantRes = await runAssistant(threadId, agentPayload, 'create-template')
 
     if (!assistantRes || !assistantRes.messages || assistantRes.messages.length === 0) {
-      console.error('Invalid or empty response from assistant:', assistantRes);
       throw new Error('Failed to get a valid response from the AI agent.');
     }
 
@@ -67,62 +61,54 @@ app.post('/agent-api/create-call-pack', async (c: Context) => {
 
     return c.json(meeting)
   } catch (err: unknown) {
-    console.error('Template generation failed:', err instanceof Error ? err.message : err)
     return c.json({ error: err instanceof Error ? err.message : 'Unknown error occurred' }, 502)
   }
 })
 
 // ---------------------------------------------------------------------------------------------------- //
-// OpenAI Transcript Analysis Route
+// OpenAI Transcript Analysis Route - REMOVED
 // ---------------------------------------------------------------------------------------------------- //
-/**
- * @param transcript - The transcript of the call
- * @param questions - The questions to check if they were answered
- * @returns The analysis result
- */
-app.post('/agent-api/check-answered-questions', async (c) => {
+
+// ---------------------------------------------------------------------------------------------------- //
+// Lead Scoring Route
+// ---------------------------------------------------------------------------------------------------- //
+app.post('/agent-api/lead-scoring', async (c) => {
   try {
-    const payload = await c.req.json();
-    const transcript = payload.transcript || '';
-    const questions: QuestionInput[] = payload.questions || [];
-    const analysisResult = await analyzeTranscriptQuestions(transcript, questions);
+    const payload = await c.req.json() as LeadScoringRequest
     
-    return c.json({ questions: analysisResult });
-  } catch (error) {
-    console.error('Error in function:', error);
-    // Type check the error before accessing properties
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    const status = error instanceof Error && 
-      (error.message === 'Missing Authorization header' || error.message === 'Unauthorized') 
-      ? 401 : 500;
-
-    return c.json({ error: errorMessage }, status);
-  }
-});
-
-// ---------------------------------------------------------------------------------------------------- //
-// Call Card Scoring Route
-// ---------------------------------------------------------------------------------------------------- //
-app.post('/agent-api/call-card-scoring', async (c) => {
-  try {
-    // Check if we should use mock data
-    if (shouldUseMockData()) {
-      console.log('Using mock data for call-card-scoring')
-      return c.json(getMockCallScoringData())
+    if (!payload.framework || !payload.questions || !payload.transcript) {
+      return c.json({ error: 'Missing required fields: framework, questions, and transcript' }, 400);
+    }
+    
+    // Check if lead scoring assistant ID is configured
+    if (!Deno.env.get('LANGSMITH_CALL_CARD_LEAD_SCORING_ASSISTANT_ID')) {
+      return c.json({ error: 'Lead scoring assistant ID not configured' }, 503);
     }
 
-    const payload = await c.req.json() as CallScoringRequest
-    
-    if (!payload.framework || !payload.content || !payload.transcript) {
-      return c.json({ error: 'Missing required fields: framework, content, and transcript' }, 400);
+    try {
+      const threadId = await createThread()
+      // Convert payload to Record<string, unknown> to satisfy type constraints
+      const assistantPayload = {
+        framework: payload.framework,
+        questions: payload.questions,
+        transcript: payload.transcript
+      } as Record<string, unknown>
+      const assistantRes = await runAssistant(threadId, assistantPayload, 'lead-scoring')
+
+      // Process the response using our helper function
+      try {
+        const processedResponse = processLeadScoringResponse(assistantRes);
+        return c.json(processedResponse);
+      } catch (parseError) {
+        throw new Error('Failed to process lead scoring response');
+      }
+    } catch (err: unknown) {
+      return c.json({ 
+        error: 'Lead scoring analysis failed', 
+        details: err instanceof Error ? err.message : 'Unknown error' 
+      }, 502);
     }
-
-    // TODO: Implement actual scoring logic here
-    // For now, return mock data even in non-mock mode
-    return c.json(getMockCallScoringData())
-
   } catch (error) {
-    console.error('Error in call-card-scoring:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return c.json({ error: errorMessage }, 500);
   }
