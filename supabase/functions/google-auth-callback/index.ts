@@ -10,22 +10,13 @@ import type { Database } from '../_libs/types/database.types.ts';
  * @returns {string} The redirect URI for the current environment
  */
 function getRedirectUri(): string {
-  // Check for custom redirect URI in environment variables
-  const customRedirectUri = Deno.env.get('OAUTH_REDIRECT_URI');
-  if (customRedirectUri) {
-    return customRedirectUri;
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  if (!supabaseUrl) {
+    throw new Error(
+      'SUPABASE_URL is not defined. Please set it in your environment variables.'
+    );
   }
-  
-  // Check if we're in development mode
-  const isDevelopment = Deno.env.get('ENVIRONMENT') === 'development' || 
-                       Deno.env.get('NODE_ENV') === 'development';
-  
-  if (isDevelopment) {
-    return 'http://127.0.0.1:8080/auth-callback';
-  }
-  
-  // For production, use the production redirect URI
-  return Deno.env.get('OAUTH_REDIRECT_URI_PROD') || 'https://your-app-domain.com/auth-callback';
+  return `${supabaseUrl}/auth/v1/callback`;
 }
 
 const app = new Hono();
