@@ -277,6 +277,9 @@ async function createDraftTemplate(userId: string, googleEvent: GoogleCalendarEv
       user_id: userId,
       status: 'DRAFT',
       description: googleEvent.description || 'New meeting scheduled',
+      is_default_template: false,
+      sales_framework: null,
+      content: { useCases: [], painPoints: [] } as unknown as Json
     })
     .select('template_id')
     .single()
@@ -343,16 +346,27 @@ async function generateAndUpdateTemplate(
   // Verify the new callPack structure has the expected properties
   if (!callPack.useCases || !callPack.painPoints) {
     console.warn('Call pack is missing useCases or painPoints properties:', callPack)
+    // Initialize empty arrays if missing to prevent errors
+    if (!callPack.useCases) callPack.useCases = [];
+    if (!callPack.painPoints) callPack.painPoints = [];
   }
 
+  // Create content object with useCases and painPoints structure
+  const content = {
+    useCases: callPack.useCases || [],
+    painPoints: callPack.painPoints || []
+  };
+
+  // Update template with new structure including content and null sales_framework
   const { error: updateError } = await supabaseClient
     .from('templates')
     .update({
       template_name: callPack.name,
-      content: callPack as unknown as Json,
+      content: content as unknown as Json,
       description: callPack.description,
       status: 'ACTIVE',
       error_message: null,
+      sales_framework: null // Initialize with null sales_framework
     })
     .eq('template_id', templateId)
 

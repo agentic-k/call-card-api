@@ -107,6 +107,9 @@
     "https://esm.sh/ws@^8.14.2?target=denonext": "https://esm.sh/ws@8.18.3?target=denonext"
   },
   "remote": {
+    "https://deno.land/std@0.214.0/dotenv/mod.ts": "0fcdf815a78d6f5bc70de92599fef80bc174da708492c4ed50b87ea480a56baa",
+    "https://deno.land/std@0.214.0/dotenv/parse.ts": "55d5d1a5ba76c1324e6dc2f2f7917f03c47e5da5c2c55af11fd0fe2d6a3d3a2e",
+    "https://deno.land/std@0.214.0/dotenv/stringify.ts": "0047ad7068289735d08964046aea267a750c141b494ca0e38831b89be6c020c2",
     "https://esm.sh/@supabase/auth-js@2.64.2/denonext/auth-js.mjs": "ae42eb4c7ac9fe6bfcd0e5c242f353877cf148759d1502ee653f21b2028be5e1",
     "https://esm.sh/@supabase/functions-js@2.4.1/denonext/functions-js.mjs": "0dfa81270bba8ae5af371b273a564203b4625b3a18e70774235b0b46ef40d940",
     "https://esm.sh/@supabase/node-fetch@2.6.15/denonext/node-fetch.mjs": "0bae9052231f4f6dbccc7234d05ea96923dbf967be12f402764580b6bf9f713d",
