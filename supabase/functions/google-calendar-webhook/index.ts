@@ -1,7 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.4'
 import { getValidAccessToken } from '../_libs/user-google-tokens.ts'
 import type { Tables, TablesInsert, Database, Json } from '../_libs/types/database.types.ts'
-import { shouldUseMockData, getMockCallPackData } from '../agent-api/libs/mock-data.ts'
 import {
   validateEnv,
   createThread,
@@ -191,10 +190,6 @@ async function generateCallPack(
   userCompanyUrl: string | null
 ): Promise<MeetingTemplate | ErrorResponse> {
   try {
-    if (shouldUseMockData()) {
-      return getMockCallPackData()
-    }
-
     // Ensure required parameters are not empty
     if (!prospectCompanyUrl || !userCompanyUrl) {
       return { error: 'Prospect company URL or user company URL is required' }
@@ -378,23 +373,6 @@ async function triggerAgentForTemplateCreation(
     // Step 1: Fetch user profile
     const userProfile = await fetchUserProfile(userId)
     console.log('userProfile', userProfile)
-
-    // ************ TESTING START ************ //
-    if (shouldUseMockData()) {
-      googleEvent.attendees = [
-        {
-          "self": true,
-          "email": "test@brightdata.com",
-          "organizer": true,
-          "responseStatus": "accepted"
-        },
-        {
-          "email": "test@amazon.com",
-          "responseStatus": "needsAction"
-        }
-      ]
-    }
-    // ************ TESTING END ************ //
 
     // Step 2: Find prospect from attendees
     const prospect = findProspectFromAttendees(googleEvent)
