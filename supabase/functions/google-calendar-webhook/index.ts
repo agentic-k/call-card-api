@@ -7,6 +7,7 @@ import {
   runAssistant,
   processApiResponse
 } from '../agent-api/libs/langmsmith-helper.ts'
+import { DEFAULT_FRAMEWORK } from '../_libs/config/sales-frameworks.ts'
 
 // TYPES
 import type { GoogleCalendarEvent } from '../_libs/types/google/calendar.types.ts'
@@ -18,6 +19,18 @@ type WatchChannel = Pick<Tables<'watch_channels'>, 'user_id' | 'last_sync_token'
 
 // Define a type for error responses
 type ErrorResponse = { error: string }
+
+// Helper function to sanitize error messages by removing local file paths
+function sanitizeError(error: unknown): string {
+  if (error instanceof Error && error.stack) {
+    // This regex is designed to find absolute file paths in stack traces
+    // It looks for patterns like `file:///...` or `/Users/...` up to the project root
+    const projectRootRegex = /(file:\/\/\/.*?\/call-template-main\/|(?<=\s)\/.*?\/call-template-main\/)/g
+    const sanitizedStack = error.stack.replace(projectRootRegex, '')
+    return sanitizedStack
+  }
+  return String(error)
+}
 
 // Initialize Supabase client
 const supabaseClient = createClient<Database>(
@@ -123,35 +136,50 @@ async function syncCalendarEvents(
           if (googleEvent) {
             const existingEvent = existingEventsMap.get(savedEvent.id)
 
-            if (existingEvent?.template_id) {
-              const oldAttendees = (existingEvent.attendees as { email: string }[]) || []
+            // Check if this event already has a template
+            const hasExistingTemplate = existingEvent?.template_id ? true : false;
+            
+            if (hasExistingTemplate) {
+              // Only check for attendee changes if a template already exists
+              const oldAttendees = (existingEvent!.attendees as { email: string }[]) || []
               const newAttendees = (savedEvent.attendees as { email: string }[]) || []
 
               const oldEmails = oldAttendees.map((a) => a.email).sort()
               const newEmails = newAttendees.map((a) => a.email).sort()
 
-              if (JSON.stringify(oldEmails) === JSON.stringify(newEmails)) {
+              const attendeesUnchanged = JSON.stringify(oldEmails) === JSON.stringify(newEmails);
+
+              // If attendees are unchanged AND we have an existing template, skip regeneration
+              if (attendeesUnchanged) {
+                const templateId = existingEvent!.template_id as string;
                 console.log(
-                  `Event ${savedEvent.id} attendees unchanged. Skipping template regeneration.`
+                  `Event ${savedEvent.id} attendees unchanged and template exists (ID: ${templateId}). Skipping template regeneration.`
                 )
                 continue
               }
 
+              const templateId = existingEvent!.template_id as string;
               console.log(
-                `Event ${savedEvent.id} attendees changed. Deleting old template ${existingEvent.template_id}.`
+                `Event ${savedEvent.id} attendees changed. Deleting old template ${templateId}.`
               )
               const { error: deleteError } = await supabaseClient
                 .from('templates')
                 .delete()
-                .eq('template_id', existingEvent.template_id)
+                .eq('template_id', templateId)
 
               if (deleteError) {
                 console.error(
-                  `Failed to delete old template ${existingEvent.template_id}:`,
+                  `Failed to delete old template ${templateId}:`,
                   deleteError.message
                 )
               }
+            } else {
+              console.log(`Event ${savedEvent.id} has no template attached. Generating new template.`)
             }
+            
+            // Generate template for events that either:
+            // 1. Don't have a template yet, or
+            // 2. Have a template but attendees changed
             await triggerAgentForTemplateCreation(userId, savedEvent, googleEvent)
           }
         }
@@ -179,7 +207,7 @@ async function syncCalendarEvents(
 
     return true
   } catch (error) {
-    console.error('Exception during calendar sync:', error)
+    console.error('Exception during calendar sync:', sanitizeError(error))
     return false
   }
 }
@@ -230,7 +258,7 @@ async function generateCallPack(
     return processApiResponse(apiResp)
   }
   catch (err: unknown) {
-    console.error('Template generation failed:', err instanceof Error ? err.message : String(err))
+    console.error('Template generation failed:', sanitizeError(err))
     return { error: err instanceof Error ? err.message : 'Unknown error occurred' }
   }
 }
@@ -278,7 +306,7 @@ async function createDraftTemplate(userId: string, googleEvent: GoogleCalendarEv
       status: 'DRAFT',
       description: googleEvent.description || 'New meeting scheduled',
       is_default_template: false,
-      sales_framework: null,
+      sales_framework: DEFAULT_FRAMEWORK as unknown as Json, // Default to MEDDIC framework
       content: { useCases: [], painPoints: [] } as unknown as Json
     })
     .select('template_id')
@@ -357,7 +385,7 @@ async function generateAndUpdateTemplate(
     painPoints: callPack.painPoints || []
   };
 
-  // Update template with new structure including content and null sales_framework
+  // Update template with new structure including content and MEDDIC as default sales framework
   const { error: updateError } = await supabaseClient
     .from('templates')
     .update({
@@ -366,7 +394,7 @@ async function generateAndUpdateTemplate(
       description: callPack.description,
       status: 'ACTIVE',
       error_message: null,
-      sales_framework: null // Initialize with null sales_framework
+      sales_framework: DEFAULT_FRAMEWORK as unknown as Json // Use MEDDIC as default sales framework
     })
     .eq('template_id', templateId)
 
@@ -384,6 +412,15 @@ async function triggerAgentForTemplateCreation(
   let templateId: string | undefined
 
   try {
+    // If there are no attendees or only one attendee (likely just the organizer),
+    // we cannot determine a prospect, so we skip call card creation.
+    if (!googleEvent.attendees || googleEvent.attendees.length <= 1) {
+      console.log(
+        `Skipping call card creation for event "${googleEvent.summary}" as it has insufficient attendees.`
+      )
+      return
+    }
+
     // Step 1: Fetch user profile
     const userProfile = await fetchUserProfile(userId)
     console.log('userProfile', userProfile)
@@ -400,7 +437,7 @@ async function triggerAgentForTemplateCreation(
     // Step 5: Generate and update template with call pack
     await generateAndUpdateTemplate(templateId, userProfile, prospect.email, savedEvent.id)
   } catch (error) {
-    console.error('Failed to Create Callcard:', error)
+    console.error('Failed to Create Callcard:', sanitizeError(error))
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
 
     // Update template status to ERROR if we have a templateId
@@ -465,7 +502,7 @@ Deno.serve(async (req) => {
 
     return new Response('OK', { status: 200 })
   } catch (error) {
-    console.error('Webhook handler error:', error)
+    console.error('Webhook handler error:', sanitizeError(error))
     return new Response('Internal Server Error', { status: 500 })
   }
 })

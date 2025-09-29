@@ -115,6 +115,7 @@ export type Database = {
           email: string
           id: string
           personal_context: string | null
+          sales_framework: Json | null
           updated_at: string
           username: string | null
         }
@@ -126,6 +127,7 @@ export type Database = {
           email: string
           id: string
           personal_context?: string | null
+          sales_framework?: Json | null
           updated_at?: string
           username?: string | null
         }
@@ -137,6 +139,7 @@ export type Database = {
           email?: string
           id?: string
           personal_context?: string | null
+          sales_framework?: Json | null
           updated_at?: string
           username?: string | null
         }
