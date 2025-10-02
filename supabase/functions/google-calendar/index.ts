@@ -211,6 +211,63 @@ app.post('/google-calendar/calendar-events/:eventId/link-template', async (c: Co
     return c.json({ error: errorMessage }, 500)
   }
 })
+
+// New endpoint to link callcards to events
+app.post('/google-calendar/calendar-events/:eventId/link-callcard', async (c: Context) => {
+  try {
+    const user = await getUserFromContext(c)
+    if (!user) {
+      return c.json({ error: 'User not found or not authenticated' }, 401)
+    }
+
+    const eventId = c.req.param('eventId')
+    const { callcardId } = await c.req.json()
+
+    if (!callcardId) {
+      return c.json({ error: 'callcardId is required' }, 400)
+    }
+
+    const supabase = getSupabaseUserClient(c)
+
+    // First, update the calendar event with the callcard ID
+    // Note: We're only updating callcard_id, NOT template_id to avoid foreign key constraint violations
+    const { data: eventData, error: eventError } = await supabase
+      .from('calendar_events')
+      .update({ callcard_id: callcardId })
+      .eq('id', eventId)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (eventError) {
+      if (eventError.code === 'PGRST116') {
+        return c.json({ error: 'Event not found or access denied' }, 404)
+      }
+      console.error('Database error updating calendar event:', eventError)
+      return c.json({ error: `Database error: ${eventError.message}` }, 500)
+    }
+
+    // Then, update the callcard with the event ID
+    const { data: callcardData, error: callcardError } = await supabase
+      .from('callcard')
+      .update({ calendar_event_id: eventId })
+      .eq('callcard_id', callcardId)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (callcardError) {
+      // If updating the callcard fails, log the error but don't fail the request
+      console.error('Database error updating callcard:', callcardError)
+    }
+
+    return c.json(eventData)
+  } catch (error: unknown) {
+    console.error('Error linking callcard:', error)
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
+    return c.json({ error: errorMessage }, 500)
+  }
+})
 export default app
 
 

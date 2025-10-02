@@ -38,6 +38,7 @@ export type Database = {
         Row: {
           attendees: Json | null
           calendar_id: string
+          callcard_id: string | null
           created_at: string
           description: string | null
           end_time: string | null
@@ -56,6 +57,7 @@ export type Database = {
         Insert: {
           attendees?: Json | null
           calendar_id: string
+          callcard_id?: string | null
           created_at?: string
           description?: string | null
           end_time?: string | null
@@ -74,6 +76,7 @@ export type Database = {
         Update: {
           attendees?: Json | null
           calendar_id?: string
+          callcard_id?: string | null
           created_at?: string
           description?: string | null
           end_time?: string | null
@@ -91,6 +94,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "calendar_events_callcard_id_fkey"
+            columns: ["callcard_id"]
+            isOneToOne: false
+            referencedRelation: "callcard"
+            referencedColumns: ["callcard_id"]
+          },
+          {
             foreignKeyName: "calendar_events_template_id_fkey"
             columns: ["template_id"]
             isOneToOne: false
@@ -99,6 +109,72 @@ export type Database = {
           },
           {
             foreignKeyName: "calendar_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      callcard: {
+        Row: {
+          calendar_event_id: string | null
+          callcard_id: string
+          callcard_name: string
+          company_employee_count: number | null
+          company_funding_stage: string | null
+          company_name: string | null
+          company_valuation: number | null
+          created_at: string
+          key_opportunity: string | null
+          person_name: string
+          person_title: string | null
+          talk_about: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calendar_event_id?: string | null
+          callcard_id?: string
+          callcard_name: string
+          company_employee_count?: number | null
+          company_funding_stage?: string | null
+          company_name?: string | null
+          company_valuation?: number | null
+          created_at?: string
+          key_opportunity?: string | null
+          person_name: string
+          person_title?: string | null
+          talk_about?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calendar_event_id?: string | null
+          callcard_id?: string
+          callcard_name?: string
+          company_employee_count?: number | null
+          company_funding_stage?: string | null
+          company_name?: string | null
+          company_valuation?: number | null
+          created_at?: string
+          key_opportunity?: string | null
+          person_name?: string
+          person_title?: string | null
+          talk_about?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "callcard_calendar_event_id_fkey"
+            columns: ["calendar_event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "callcard_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
