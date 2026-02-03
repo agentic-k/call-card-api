@@ -23,9 +23,12 @@ app.use('/scrape-data-integration/*', createCorsMiddleware())
 // Environment config
 const USE_MOCK_DATA=  Deno.env.get('USE_MOCK_DATA') === 'true';
 
-// Dataset IDs
-const LINKEDIN_PROFILE_DATASET_ID = 'gd_l1viktl72bvl7bjuj0'
-const LINKEDIN_COMPANY_DATASET_ID = 'gd_l1vikfnt1wgvvqz95w'
+// Dataset IDs - Load from environment variables
+// Set these in your Supabase project settings:
+// LINKEDIN_PROFILE_DATASET_ID=your_dataset_id
+// LINKEDIN_COMPANY_DATASET_ID=your_dataset_id
+const LINKEDIN_PROFILE_DATASET_ID = Deno.env.get('LINKEDIN_PROFILE_DATASET_ID') || 'your_linkedin_profile_dataset_id'
+const LINKEDIN_COMPANY_DATASET_ID = Deno.env.get('LINKEDIN_COMPANY_DATASET_ID') || 'your_linkedin_company_dataset_id'
 
 // Route: LinkedIn Profile
 app.post('/scrape-data-integration/linkedin-profile', async (c: Context) => {

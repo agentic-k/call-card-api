@@ -42,8 +42,8 @@ serve(async (req) => {
     if (!requestBody.userId || !requestBody.googleAccessToken || !requestBody.accessTokenExpiresAt) {
       throw new Error('Missing required fields in request body.');
     }
-  } catch (error) {
-    console.error('Invalid request body:', error);
+  } catch (_error) {
+    console.error('Invalid request body');
     return new Response(JSON.stringify({ error: 'Bad Request: Invalid JSON or missing fields.' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
@@ -80,7 +80,7 @@ serve(async (req) => {
       .single();
 
     if (updateError && updateError.code !== 'PGRST116') { // PGRST116 means no row found
-      console.error(`Error updating Google tokens for user ${userId}:`, updateError);
+      console.error('Error updating Google tokens:', updateError.message);
       throw new Error(`Failed to update Google tokens: ${updateError.message}`);
     }
 
@@ -96,7 +96,7 @@ serve(async (req) => {
         });
 
       if (insertError) {
-        console.error(`Error inserting Google tokens for user ${userId}:`, insertError);
+        console.error('Error inserting Google tokens:', insertError.message);
         throw new Error(`Failed to insert Google tokens: ${insertError.message}`);
       }
     } else if (!updateData && !googleRefreshToken) {
@@ -151,7 +151,7 @@ serve(async (req) => {
       }, { onConflict: 'user_id,resource_id' });
 
     if (upsertChannelError) {
-      console.error(`Error storing watch channel for user ${userId}:`, upsertChannelError);
+      console.error('Error storing watch channel:', upsertChannelError.message);
       throw new Error(`Failed to store watch channel: ${upsertChannelError.message}`);
     }
 
@@ -162,13 +162,13 @@ serve(async (req) => {
 
   } catch (error) {
     if (error instanceof Error) {
-      console.error('Error in google-calendar-setup-handler:', error.message, error.stack);
+      console.error('Error in google-calendar-setup-handler:', error.message);
       return new Response(JSON.stringify({ success: false, error: error.message }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       });
     } else {
-      console.error('Unknown error in google-calendar-setup-handler:', error);
+      console.error('Unknown error in google-calendar-setup-handler');
       return new Response(JSON.stringify({ success: false, error: 'An unknown error occurred.' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },

@@ -49,25 +49,20 @@ app.get('/callcard/:id', async (c: Context) => {
 app.post('/callcard', async (c: Context) => {
   try {
     const payload = await c.req.json()
-    console.log('Received payload:', JSON.stringify(payload, null, 2))
     const supabase = getSupabaseUserClient(c)
 
     // Get User from Context
     const user = await getUserFromContext(c)
     if (!user) {
-      console.log('User not found in context')
       return c.json({ error: 'User not found' }, 404)
     }
-    console.log('User found:', user.id)
 
     // Validate required fields
     if (!payload.callcard_name) {
-      console.log('Missing required field: callcard_name')
       return c.json({ error: 'callcard_name is required' }, 400)
     }
-    
+
     if (!payload.person_name) {
-      console.log('Missing required field: person_name')
       return c.json({ error: 'person_name is required' }, 400)
     }
 
@@ -79,20 +74,17 @@ app.post('/callcard', async (c: Context) => {
   }
 
   try {
-    console.log('Inserting callcard with data:', JSON.stringify(templateData, null, 2))
-    
     const { data, error } = await supabase
       .from('callcard')
       .insert(templateData)
       .select()
       .single();
-    
+
     if (error) {
-      console.error('Database error:', error)
+      console.error('Database error:', error.message)
       return c.json({ error: error.message, details: error }, 400)
     }
-    
-    console.log('Callcard created successfully:', data)
+
     return c.json(data, 201)
   } catch (err) {
     console.error('Unexpected error in callcard creation:', err)
@@ -108,39 +100,32 @@ app.put('/callcard/:id', async (c: Context) => {
   try {
     const id = c.req.param('id')
     const payload = await c.req.json()
-    console.log('Received update payload:', JSON.stringify(payload, null, 2))
-    
+
     const supabase = getSupabaseUserClient(c)
-    
+
     // Get User from Context
     const user = await getUserFromContext(c)
     if (!user) {
-      console.log('User not found in context')
       return c.json({ error: 'User not found' }, 404)
     }
-    console.log('User found:', user.id)
 
     // First check if the callcard belongs to the user
-    const { data: existingCallCard, error: callCardError } = await supabase
+    const { data: _existingCallCard, error: callCardError } = await supabase
       .from('callcard')
       .select('*')
       .eq('callcard_id', id)
       .eq('user_id', user.id)
       .single();
-    
+
     if (callCardError) {
-      console.log('CallCard not found or access denied:', callCardError)
       return c.json({ error: 'CallCard not found or access denied' }, 404)
     }
-    console.log('Found existing callcard:', existingCallCard)
 
     // Validate required fields if they are being updated
     if (payload.callcard_name === '') {
-      console.log('Validation error: callcard_name cannot be empty')
       return c.json({ error: 'callcard_name cannot be empty' }, 400)
     }
     if (payload.person_name === '') {
-      console.log('Validation error: person_name cannot be empty')
       return c.json({ error: 'person_name cannot be empty' }, 400)
     }
 
@@ -149,7 +134,6 @@ app.put('/callcard/:id', async (c: Context) => {
       ...payload,
       updated_at: new Date().toISOString()
     }
-    console.log('Prepared update data:', JSON.stringify(updateData, null, 2))
 
     // Update the callcard
     const { data, error } = await supabase
@@ -159,13 +143,12 @@ app.put('/callcard/:id', async (c: Context) => {
       .eq('user_id', user.id)
       .select()
       .single()
-    
+
     if (error) {
-      console.error('Error updating callcard:', error)
+      console.error('Error updating callcard:', error.message)
       return c.json({ error: error.message, details: error }, 400)
     }
-    
-    console.log('CallCard updated successfully:', data)
+
     return c.json(data)
   } catch (err) {
     console.error('Unexpected error in callcard update:', err)
